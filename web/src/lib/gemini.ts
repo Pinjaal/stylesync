@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
+import { GoogleGenerativeAI, SchemaType, Schema } from '@google/generative-ai'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -19,9 +19,8 @@ const attributeSchema = {
     features: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
     description: { type: SchemaType.STRING },
   },
-  required: ['category', 'colors', 'occasions', 'seasons', 'description'],
-}
-
+required: ['category', 'colors', 'occasions', 'seasons', 'description'],
+} as Schema
 const SYSTEM = `You are a fashion analyst. Look at the clothing item and return structured attributes.
 
 Use these vocabularies (pick from the list, or leave empty if uncertain):
