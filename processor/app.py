@@ -95,3 +95,27 @@ async def process(
         "cleaned_image_b64": cleaned_b64,
         "embedding": embedding,
     }
+
+@app.post("/embed_text")
+async def embed_text(
+    payload: dict,
+    x_processor_secret: str | None = Header(default=None),
+):
+    """Embed a text query for similarity search."""
+    _check_auth(x_processor_secret)
+    text = payload.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="text required")
+
+    inputs = clip_processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(device)
+    with torch.no_grad():
+        features = clip_model.get_text_features(**inputs)
+
+    # Same shape-handling pattern as /process for older transformers versions
+    if hasattr(features, 'text_embeds'):
+        features = features.text_embeds
+    elif hasattr(features, 'pooler_output'):
+        features = features.pooler_output
+
+    features = features / features.norm(dim=-1, keepdim=True)
+    return {"embedding": features[0].cpu().tolist()}

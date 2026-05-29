@@ -55,3 +55,21 @@ export async function deleteFromStorage(paths: string[]): Promise<void> {
   const { error } = await supabase.storage.from(BUCKET).remove(paths)
   if (error) throw new Error(`Storage delete failed: ${error.message}`)
 }
+
+export async function getSignedUrls(
+  paths: string[],
+  expiresIn = 3600,
+): Promise<Record<string, string>> {
+  if (paths.length === 0) return {}
+  const supabase = getAdminClient()
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrls(paths, expiresIn)
+  if (error) throw new Error(`Signed URLs failed: ${error.message}`)
+
+  const map: Record<string, string> = {}
+  for (const row of data ?? []) {
+    if (row.path && row.signedUrl) map[row.path] = row.signedUrl
+  }
+  return map
+}
