@@ -73,3 +73,76 @@ export async function extractAttributes(pngBuffer: Buffer): Promise<ItemAttribut
 
   return JSON.parse(result.response.text())
 }
+
+const outfitSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    outfits: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          item_ids: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          reasoning: { type: SchemaType.STRING },
+          style_tips: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          confidence: { type: SchemaType.NUMBER },
+        },
+        required: ['item_ids', 'reasoning'],
+      },
+    },
+  },
+  required: ['outfits'],
+} as Schema
+
+export interface OutfitCandidate {
+  id: string
+  category: string | null
+  subcategory: string | null
+  colors: string[] | null
+  description: string | null
+}
+
+export interface ComposedOutfit {
+  item_ids: string[]
+  reasoning: string
+  style_tips?: string[]
+  confidence?: number
+}
+
+export async function composeOutfits(
+  candidates: OutfitCandidate[],
+  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+): Promise<ComposedOutfit[]> {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: outfitSchema,
+      temperature: 0.4, // a little variety across the 2-3 looks; items stay constrained
+    },
+    systemInstruction: `You are a fashion stylist. From ONLY the candidate items provided, compose 2-3 complete outfits that fit the user's request. Each outfit should usually include a top + bottom (or a dress), plus optional outerwear/footwear/accessory. Use only item IDs that appear in the candidates. Prioritize color coordination and occasion appropriateness. In 'reasoning', explain each outfit in one or two sentences.`,
+  })
+
+  const prompt = `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(
+    ctx.weather ?? {},
+  )}, style=${ctx.styleQuery || 'no preference'}
+
+Candidate items from their wardrobe:
+${JSON.stringify(
+  candidates.map((c) => ({
+    id: c.id,
+    category: c.category,
+    subcategory: c.subcategory,
+    colors: c.colors,
+    description: c.description,
+  })),
+  null,
+  2,
+)}
+
+Compose 2-3 outfits.`
+
+  const result = await model.generateContent(prompt)
+  const parsed = JSON.parse(result.response.text()) as { outfits: ComposedOutfit[] }
+  return parsed.outfits ?? []
+}
