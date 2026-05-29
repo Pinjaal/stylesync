@@ -103,7 +103,7 @@ async def embed_text(
 ):
     """Embed a text query for similarity search."""
     _check_auth(x_processor_secret)
-    text = payload.get("text", "")
+    text = (payload.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text required")
 
