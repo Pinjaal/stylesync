@@ -126,3 +126,9 @@ export async function POST(req: Request) {
     }))
 
     return NextResponse.json({ outfits })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('recommend error:', err)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
