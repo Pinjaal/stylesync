@@ -72,9 +72,10 @@ export async function POST(req: Request) {
       .filter((k): k is string => Boolean(k))
     const urlMap = await getSignedUrls(keys)
 
-    // 5. Shape the response: real items + image URLs, drop empty outfits
-    const outfits = composed
+    // 5. Shape display outfits (real items + image URLs), drop empty ones
+    const displayOutfits = composed
       .map((o) => ({
+        item_ids: o.item_ids.filter((id) => byId.has(id)),
         reasoning: o.reasoning,
         style_tips: o.style_tips ?? [],
         confidence: o.confidence ?? null,
@@ -91,29 +92,37 @@ export async function POST(req: Request) {
       }))
       .filter((o) => o.items.length > 0)
 
-    if (outfits.length === 0) {
+    if (displayOutfits.length === 0) {
       return NextResponse.json({ error: 'Could not compose an outfit. Try again.' }, { status: 502 })
     }
 
-    // 6. Save the top pick (best-effort; insert returns an error object, never throws)
-    const top = composed[0]
-    if (top) {
-      await supabase.from('outfits').insert({
-        user_id: user.id,
-        item_ids: top.item_ids,
-        occasion,
-        season,
-        weather: weather ?? null,
-        style_query: styleQuery ?? null,
-        reasoning: top.reasoning,
-        style_tips: top.style_tips ?? null,
-      })
+    // 6. Save every shown outfit, capture their IDs (best-effort)
+    let ids: (string | null)[] = displayOutfits.map(() => null)
+    const { data: saved } = await supabase
+      .from('outfits')
+      .insert(
+        displayOutfits.map((o) => ({
+          user_id: user.id,
+          item_ids: o.item_ids,
+          occasion,
+          season,
+          weather: weather ?? null,
+          style_query: styleQuery ?? null,
+          reasoning: o.reasoning,
+          style_tips: o.style_tips.length ? o.style_tips : null,
+        })),
+      )
+      .select('id')
+    if (saved && saved.length === displayOutfits.length) {
+      ids = saved.map((r) => r.id as string)
     }
 
+    const outfits = displayOutfits.map((o, i) => ({
+      id: ids[i],
+      reasoning: o.reasoning,
+      style_tips: o.style_tips,
+      confidence: o.confidence,
+      items: o.items,
+    }))
+
     return NextResponse.json({ outfits })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    console.error('recommend error:', err)
-    return NextResponse.json({ error: message }, { status: 500 })
-  }
-}

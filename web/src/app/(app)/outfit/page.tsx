@@ -2,23 +2,10 @@
 
 import { useState } from 'react'
 import { Sparkles, Loader2 } from 'lucide-react'
+import { OutfitCard, type Outfit } from './_components/OutfitCard'
 
 const OCCASIONS = ['casual', 'work', 'party', 'formal', 'gym', 'travel', 'ethnic', 'date']
 const SEASONS = ['summer', 'winter', 'monsoon']
-
-interface OutfitItem {
-  id: string
-  category: string | null
-  subcategory: string | null
-  colors: string[] | null
-  imageUrl: string | null
-}
-interface Outfit {
-  reasoning: string
-  style_tips: string[]
-  confidence: number | null
-  items: OutfitItem[]
-}
 
 export default function OutfitPage() {
   const [occasion, setOccasion] = useState('casual')
@@ -125,43 +112,7 @@ export default function OutfitPage() {
 
       <div className="space-y-5">
         {outfits?.map((outfit, idx) => (
-          <article key={idx} className="rounded-2xl border border-gray-200 bg-white p-4">
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {outfit.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center p-2"
-                >
-                  {item.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.imageUrl}
-                      alt={item.subcategory || item.category || 'item'}
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-[10px] text-gray-400">no image</span>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {idx === 0 && (
-              <span className="inline-block text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 mb-2">
-                Top pick
-              </span>
-            )}
-
-            <p className="text-sm text-gray-700 mb-2">{outfit.reasoning}</p>
-
-            {outfit.style_tips.length > 0 && (
-              <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
-                {outfit.style_tips.map((tip, i) => (
-                  <li key={i}>{tip}</li>
-                ))}
-              </ul>
-            )}
-          </article>
+          <OutfitCard key={outfit.id ?? idx} outfit={outfit} isTopPick={idx === 0} />
         ))}
       </div>
     </main>
