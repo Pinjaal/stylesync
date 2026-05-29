@@ -94,7 +94,6 @@ export default function AddItemButton() {
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         className="hidden"
         onChange={(e) => {
