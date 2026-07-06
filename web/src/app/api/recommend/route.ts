@@ -86,6 +86,7 @@ export async function POST(req: Request) {
     const displayOutfits = composed
       .map((o) => ({
         item_ids: o.item_ids.filter((id) => byId.has(id)),
+        title: o.title ?? null,
         reasoning: o.reasoning,
         style_tips: o.style_tips ?? [],
         confidence: o.confidence ?? null,
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
 
     const outfits = displayOutfits.map((o, i) => ({
       id: ids[i],
+      title: o.title,
       reasoning: o.reasoning,
       style_tips: o.style_tips,
       confidence: o.confidence,

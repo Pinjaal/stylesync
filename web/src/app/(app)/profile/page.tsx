@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Spark } from '@/components/Spark'
 import { Sparkles, BarChart3, Bell, LogOut, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
@@ -12,12 +13,13 @@ export default async function ProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const [{ data: profile }, itemsRes, outfitsRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('display_name, style_preferences')
-      .eq('id', user!.id)
+      .eq('id', user.id)
       .maybeSingle(),
     supabase
       .from('items')

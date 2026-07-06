@@ -1,6 +1,7 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StyleClient } from './StyleClient'
-import type { StylePreferences } from '@/lib/styleDna'
+import { computeStreak } from '@/lib/streak'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,15 +10,24 @@ export default async function OutfitPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, style_preferences')
-    .eq('id', user!.id)
-    .maybeSingle()
+  const [{ data: profile }, { data: outfitRows }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('outfits')
+      .select('created_at')
+      .order('created_at', { ascending: false })
+      .limit(400)
+      .returns<{ created_at: string }[]>(),
+  ])
 
-  const prefs = (profile?.style_preferences ?? {}) as StylePreferences
   const firstName = (profile?.display_name ?? '').split(' ')[0] || 'there'
+  const streak = computeStreak((outfitRows ?? []).map((r) => r.created_at))
 
-  return <StyleClient name={firstName} dnaTitle={prefs.styleDna?.title ?? null} />
+  return <StyleClient name={firstName} streak={streak} />
 }

@@ -82,12 +82,13 @@ const outfitSchema = {
       items: {
         type: SchemaType.OBJECT,
         properties: {
+          title: { type: SchemaType.STRING },
           item_ids: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
           reasoning: { type: SchemaType.STRING },
           style_tips: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
           confidence: { type: SchemaType.NUMBER },
         },
-        required: ['item_ids', 'reasoning'],
+        required: ['item_ids', 'reasoning', 'title'],
       },
     },
   },
@@ -103,6 +104,7 @@ export interface OutfitCandidate {
 }
 
 export interface ComposedOutfit {
+  title?: string
   item_ids: string[]
   reasoning: string
   style_tips?: string[]
@@ -120,7 +122,7 @@ export async function composeOutfits(
       responseSchema: outfitSchema,
       temperature: 0.4, // a little variety across the 2-3 looks; items stay constrained
     },
-    systemInstruction: `You are a fashion stylist. From ONLY the candidate items provided, compose 2-3 complete outfits that fit the user's request. Each outfit should usually include a top + bottom (or a dress), plus optional outerwear/footwear/accessory. Use only item IDs that appear in the candidates. Prioritize color coordination and occasion appropriateness. In 'reasoning', explain each outfit in one or two sentences.`,
+    systemInstruction: `You are a fashion stylist. From ONLY the candidate items provided, compose 2-3 complete outfits that fit the user's request. Each outfit should usually include a top + bottom (or a dress), plus optional outerwear/footwear/accessory. Use only item IDs that appear in the candidates. Prioritize color coordination and occasion appropriateness. Give each outfit a short, punchy editorial 'title' (2-4 words, e.g. "Date-night drama", "Quiet luxury Monday"). In 'reasoning', explain each outfit in one or two sentences. In 'style_tips', give 2-3 very short actionable tips.`,
   })
 
   const prompt = `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(

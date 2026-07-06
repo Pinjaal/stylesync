@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, User, Plus } from 'lucide-react'
+import { Home, Users, User, Plus } from 'lucide-react'
 import { Spark } from '@/components/Spark'
 import { uploadItems } from '@/lib/uploadItems'
 
@@ -64,6 +64,10 @@ export function BottomNav() {
           <Plus strokeWidth={2.4} />
         </button>
 
+        <Link href="/community" className={`navb${isActive('/community') ? ' on' : ''}`}>
+          <Users strokeWidth={1.9} />
+          <span>Community</span>
+        </Link>
         <Link href="/profile" className={`navb${isActive('/profile') ? ' on' : ''}`}>
           <User strokeWidth={1.9} />
           <span>You</span>
