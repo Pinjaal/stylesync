@@ -36,8 +36,18 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Pull the user's onboarding style profile so Spark leans on their vibes.
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('style_preferences')
+      .eq('id', user.id)
+      .maybeSingle()
+    const vibes = (profile?.style_preferences as { vibes?: string[] } | null)?.vibes ?? []
+    const vibeText = vibes.length ? `${vibes.join(', ')} style, ` : ''
+
     // 1. Turn the request into a CLIP vector
-    const queryText = `${styleQuery || ''} ${occasion} outfit for ${season} weather`.trim()
+    const queryText =
+      `${vibeText}${styleQuery || ''} ${occasion} outfit for ${season} weather`.trim()
     const embedding = await embedText(queryText)
 
     // 2. Pull the best-matching candidates from the wardrobe

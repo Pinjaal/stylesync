@@ -1,20 +1,32 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { Bodoni_Moda, Space_Grotesk, Space_Mono } from 'next/font/google'
+import './globals.css'
 import { ServiceWorkerRegister } from './_components/ServiceWorkerRegister'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const bodoni = Bodoni_Moda({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  variable: '--font-bodoni',
+  display: 'swap',
+})
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const space = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-space',
+  display: 'swap',
+})
+
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-mono',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: 'StyleSync',
+  title: 'StyleSync — Your closet, styled.',
   description: 'Your AI-powered wardrobe and outfit stylist.',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -29,20 +41,23 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#b8395a',
+  themeColor: '#ee4127',
 }
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bodoni.variable} ${space.variable} ${spaceMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><ServiceWorkerRegister />{children}</body>
+      <body>
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
-  );
+  )
 }

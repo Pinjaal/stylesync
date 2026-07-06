@@ -8,15 +8,28 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect('/login')
   }
 
+  // Gate the app behind onboarding so Spark always has a style profile to work with.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('onboarded')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.onboarded) {
+    redirect('/onboarding')
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <main className="flex-1 pb-20">{children}</main>
+    <div className="shell">
+      <main className="app-scroll">{children}</main>
       <BottomNav />
     </div>
   )

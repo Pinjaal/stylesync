@@ -1,39 +1,100 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Shirt, Sparkles, Clock, User } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Home, User, Plus } from 'lucide-react'
+import { Spark } from '@/components/Spark'
+import { uploadItems } from '@/lib/uploadItems'
 
-const tabs = [
-  { href: '/closet',  label: 'Closet',  icon: Shirt },
-  { href: '/outfit',  label: 'Outfit',  icon: Sparkles },
-  { href: '/history', label: 'History', icon: Clock },
-  { href: '/profile', label: 'Profile', icon: User },
-]
+const STAGES = ['Removing the background…', 'Tagging with AI…', 'Saving to your closet…']
 
 export function BottomNav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState(0)
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => () => {
+    if (timer.current) clearInterval(timer.current)
+  }, [])
+
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + '/')
+
+  async function handleFiles(files: File[]) {
+    setBusy(true)
+    setStage(0)
+    if (timer.current) clearInterval(timer.current)
+    timer.current = setInterval(
+      () => setStage((s) => Math.min(s + 1, STAGES.length - 1)),
+      1500,
+    )
+    const ids = await uploadItems(files)
+    if (timer.current) clearInterval(timer.current)
+    setBusy(false)
+    if (files.length === 1 && ids.length === 1) {
+      router.push(`/closet/${ids[0]}?added=1`)
+    } else {
+      router.push('/closet')
+    }
+    router.refresh()
+  }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
-      <ul className="flex justify-around max-w-md mx-auto">
-        {tabs.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
-          return (
-            <li key={href} className="flex-1">
-              <Link
-                href={href}
-                className={`flex flex-col items-center justify-center py-3 text-xs transition-colors ${
-                  active ? 'text-black' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <Icon className="h-5 w-5 mb-1" strokeWidth={active ? 2.5 : 2} />
-                <span className={active ? 'font-medium' : ''}>{label}</span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </nav>
+    <>
+      <nav className="bottomnav">
+        <Link href="/closet" className={`navb${isActive('/closet') ? ' on' : ''}`}>
+          <Home strokeWidth={1.9} />
+          <span>Closet</span>
+        </Link>
+        <Link href="/outfit" className={`navb${isActive('/outfit') ? ' on' : ''}`}>
+          <Spark filled={false} />
+          <span>Style</span>
+        </Link>
+
+        <button
+          className="navfab"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          aria-label="Add a piece"
+        >
+          <Plus strokeWidth={2.4} />
+        </button>
+
+        <Link href="/profile" className={`navb${isActive('/profile') ? ' on' : ''}`}>
+          <User strokeWidth={1.9} />
+          <span>You</span>
+        </Link>
+      </nav>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const fileList = e.target.files
+          if (fileList && fileList.length > 0) {
+            const files = Array.from(fileList)
+            e.target.value = ''
+            handleFiles(files)
+          }
+        }}
+      />
+
+      {busy && (
+        <div className="add-overlay">
+          <div className="add-card">
+            <Spark className="spin" />
+            <div className="t">Adding your piece</div>
+            <div className="d">{STAGES[stage]}</div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

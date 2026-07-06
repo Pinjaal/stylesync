@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, Trash2, Loader2 } from 'lucide-react'
+import { Trash2, Check, Loader2 } from 'lucide-react'
+import { Spark } from '@/components/Spark'
 import { markWorn, deleteItem } from '../actions'
 
 export function ItemActions({ itemId }: { itemId: string }) {
@@ -25,7 +27,7 @@ export function ItemActions({ itemId }: { itemId: string }) {
   }
 
   function handleDelete() {
-    if (!window.confirm('Delete this item? This cannot be undone.')) return
+    if (!window.confirm('Remove this piece from your closet?')) return
     setError(null)
     startTransition(async () => {
       try {
@@ -39,32 +41,39 @@ export function ItemActions({ itemId }: { itemId: string }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={handleWorn}
-          disabled={pending}
-          className="flex-1 flex items-center justify-center gap-2 bg-black text-white py-2.5 rounded-md hover:bg-gray-800 transition disabled:opacity-60"
-        >
-          {pending ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-          {wornJustNow ? 'Logged!' : 'I wore this'}
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={pending}
-          className="flex items-center justify-center gap-2 border border-red-200 text-red-600 px-4 py-2.5 rounded-md hover:bg-red-50 transition disabled:opacity-60"
-        >
-          <Trash2 size={18} />
-          Delete
-        </button>
-      </div>
+    <>
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+        <p className="alert" style={{ margin: '0 22px 8px' }}>
           {error}
         </p>
       )}
-    </div>
+      <div className="idfoot">
+        <Link href="/outfit" className="btn">
+          <Spark /> Style this piece
+        </Link>
+        <button
+          type="button"
+          className="square"
+          onClick={handleWorn}
+          disabled={pending}
+          aria-label="I wore this today"
+          title="I wore this today"
+          style={wornJustNow ? { borderColor: 'var(--sage)', color: 'var(--sage)' } : undefined}
+        >
+          {pending ? <Loader2 size={18} className="animate-spin" /> : <Check size={19} strokeWidth={2.2} />}
+        </button>
+        <button
+          type="button"
+          className="square"
+          onClick={handleDelete}
+          disabled={pending}
+          aria-label="Remove from closet"
+          title="Remove from closet"
+          style={{ color: 'var(--accent)', borderColor: 'rgba(238,65,39,.3)' }}
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+    </>
   )
 }
