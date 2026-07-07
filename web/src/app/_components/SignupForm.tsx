@@ -60,18 +60,17 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
   async function verify() {
     setError(null)
     if (code.trim().length < 6) {
-      setError('Enter the 6-digit code')
+      setError('Enter the code from your email')
       return
     }
     setLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: code.trim(),
-        type: 'email',
-      })
-      if (error) throw error
+      const args = { email: email.trim(), token: code.trim() }
+      // New signups verify as type 'signup'; existing emails as 'email' — try both.
+      let res = await supabase.auth.verifyOtp({ ...args, type: 'email' })
+      if (res.error) res = await supabase.auth.verifyOtp({ ...args, type: 'signup' })
+      if (res.error) throw res.error
       // Email verified + now signed in — go set a password.
       setStep('password')
       setTimeout(() => pwRef.current?.focus(), 60)
@@ -159,7 +158,7 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
             </button>
             <div className="auth-h">Check your email</div>
             <div className="auth-sub">
-              We sent a 6-digit code to <b>{email}</b>.
+              We sent a verification code to <b>{email}</b>.
             </div>
           </div>
 
@@ -172,10 +171,10 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
               ref={codeRef}
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
-              placeholder="••••••"
+              maxLength={10}
+              placeholder="Enter the code"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
               onKeyDown={(e) => e.key === 'Enter' && verify()}
               style={{
                 textAlign: 'center',

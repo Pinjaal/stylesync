@@ -1,0 +1,31 @@
+<!--
+  StyleSync verification-code email.
+  Paste this into BOTH Supabase templates (Authentication → Email Templates):
+    • "Confirm signup"  (used for NEW users)
+    • "Magic Link"      (used for EXISTING users / password reset)
+  Subject line for both:  Your StyleSync verification code
+  The {{ .Token }} placeholder renders the numeric code.
+-->
+<div style="background:#F3EDE3;padding:32px 16px;font-family:'Helvetica Neue',Arial,sans-serif">
+  <div style="max-width:440px;margin:0 auto;background:#FAF6EE;border-radius:18px;overflow:hidden;border:1px solid #eadfce">
+    <div style="background:#221C18;padding:24px 28px">
+      <div style="color:#FAF6EE;font-size:24px;font-weight:700;letter-spacing:-0.5px">
+        Style<span style="color:#F4C64E;font-style:italic">Sync</span>
+      </div>
+    </div>
+    <div style="padding:28px">
+      <h1 style="color:#17120E;font-size:20px;margin:0 0 8px">Verify your email</h1>
+      <p style="color:#6b5d63;font-size:14px;line-height:1.5;margin:0 0 22px">
+        Enter this code in StyleSync to finish setting up your account.
+      </p>
+      <div style="background:#F3EDE3;border:1.5px solid #EE4127;border-radius:14px;padding:18px;text-align:center">
+        <div style="font-size:32px;font-weight:700;letter-spacing:8px;color:#17120E;font-family:'Courier New',monospace">
+          {{ .Token }}
+        </div>
+      </div>
+      <p style="color:#9e9198;font-size:12px;margin:22px 0 0">
+        This code expires shortly. If you didn&rsquo;t request it, you can safely ignore this email.
+      </p>
+    </div>
+  </div>
+</div>
