@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { HangerLogo } from '@/components/HangerLogo'
+import { AuthBrandPanel } from './AuthBrandPanel'
 import { createClient } from '@/lib/supabase/client'
 
 export function LoginForm() {
@@ -42,7 +43,9 @@ export function LoginForm() {
   }
 
   return (
-    <main className="auth-screen">
+    <div className="auth-layout">
+      <AuthBrandPanel />
+      <main className="auth-screen">
       <div className="auth-top">
         <HangerLogo className="auth-mark" />
         <div className="auth-h">Welcome back</div>
@@ -87,6 +90,7 @@ export function LoginForm() {
       <div className="auth-foot" style={{ marginTop: 8 }}>
         <Link href="/signup?reset=1">Forgot password?</Link>
       </div>
-    </main>
+      </main>
+    </div>
   )
 }

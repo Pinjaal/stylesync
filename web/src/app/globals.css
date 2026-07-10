@@ -3112,3 +3112,114 @@ textarea {
     transition-duration: 0.08s !important;
   }
 }
+
+/* ============================================================
+   DESKTOP / WEB OPTIMISATION
+   Everything below only applies at >=560px. Phones (<560px)
+   render exactly as before — the mobile layout is untouched.
+   ============================================================ */
+
+/* richer branded backdrop behind the app column on larger screens */
+@media (min-width: 560px) {
+  body {
+    background: radial-gradient(120% 80% at 50% -10%, #3a2a22 0%, var(--canvas) 55%, #17110d 100%);
+    background-attachment: fixed;
+  }
+  /* the in-app column reads as an intentional device panel */
+  .shell {
+    box-shadow: var(--shadow-pop);
+  }
+  .splash,
+  .onb,
+  .onb-done {
+    box-shadow: var(--shadow-pop);
+  }
+}
+
+/* ---- auth split layout wrapper ---- */
+.auth-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.auth-brand {
+  display: none;
+}
+
+/* tablet: float the auth form as a centered card */
+@media (min-width: 560px) and (max-width: 899px) {
+  .auth-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .auth-layout .auth-screen {
+    min-height: auto;
+    width: 100%;
+    max-width: 460px;
+    margin: 0;
+    border-radius: 30px;
+    box-shadow: var(--shadow-pop);
+    padding: 44px 36px;
+  }
+}
+
+/* desktop: brand panel on the left, form on the right */
+@media (min-width: 900px) {
+  .auth-layout {
+    display: flex;
+  }
+  .auth-brand {
+    display: flex;
+    flex: 1.1;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px;
+    color: var(--surface);
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(130% 110% at 15% 0%, #ee4127 0%, #cf331c 45%, #7c1f11 100%);
+  }
+  .auth-brand .logo {
+    width: 66px;
+    height: 66px;
+    margin-bottom: 28px;
+  }
+  .auth-brand h2 {
+    font-family: var(--font-display);
+    font-size: 48px;
+    line-height: 1.03;
+    letter-spacing: -0.6px;
+    margin: 0;
+    font-weight: 600;
+  }
+  .auth-brand h2 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .auth-brand p {
+    font-size: 17px;
+    opacity: 0.9;
+    margin: 20px 0 0;
+    max-width: 380px;
+    line-height: 1.55;
+  }
+  .auth-brand .foot {
+    position: absolute;
+    bottom: 44px;
+    left: 60px;
+    font-size: 12px;
+    opacity: 0.7;
+    font-family: var(--font-mono);
+    letter-spacing: 2px;
+  }
+  .auth-layout .auth-screen {
+    flex: none;
+    width: 480px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
+    justify-content: center;
+    box-shadow: -20px 0 60px -30px rgba(0, 0, 0, 0.5);
+  }
+}

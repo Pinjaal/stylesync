@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Loader2 } from 'lucide-react'
 import { HangerLogo } from '@/components/HangerLogo'
+import { AuthBrandPanel } from './AuthBrandPanel'
 import { createClient } from '@/lib/supabase/client'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -101,7 +102,9 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
   }
 
   return (
-    <main className="auth-screen">
+    <div className="auth-layout">
+      <AuthBrandPanel />
+      <main className="auth-screen">
       {step === 'email' && (
         <>
           <div className="auth-top">
@@ -236,6 +239,7 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
           </button>
         </>
       )}
-    </main>
+      </main>
+    </div>
   )
 }
