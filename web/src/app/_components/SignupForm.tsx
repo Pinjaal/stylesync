@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Loader2 } from 'lucide-react'
-import { Spark } from '@/components/Spark'
+import { HangerLogo } from '@/components/HangerLogo'
 import { createClient } from '@/lib/supabase/client'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -105,7 +105,7 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
       {step === 'email' && (
         <>
           <div className="auth-top">
-            <Spark className="auth-mark" />
+            <HangerLogo className="auth-mark" />
             <div className="auth-h">{reset ? 'Reset your password' : 'Welcome to StyleSync'}</div>
             <div className="auth-sub">
               {reset
@@ -208,7 +208,7 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
       {step === 'password' && (
         <>
           <div className="auth-top">
-            <Spark className="auth-mark" />
+            <HangerLogo className="auth-mark" />
             <div className="auth-h">{reset ? 'Set a new password' : 'Create a password'}</div>
             <div className="auth-sub">
               Email verified ✓ — {reset ? 'choose a new password' : 'set a password'} you&apos;ll use to log in.

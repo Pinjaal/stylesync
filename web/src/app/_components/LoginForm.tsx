@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { Spark } from '@/components/Spark'
+import { HangerLogo } from '@/components/HangerLogo'
 import { createClient } from '@/lib/supabase/client'
 
 export function LoginForm() {
@@ -44,7 +44,7 @@ export function LoginForm() {
   return (
     <main className="auth-screen">
       <div className="auth-top">
-        <Spark className="auth-mark" />
+        <HangerLogo className="auth-mark" />
         <div className="auth-h">Welcome back</div>
         <div className="auth-sub">Log in to your digital closet.</div>
       </div>
