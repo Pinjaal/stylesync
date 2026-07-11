@@ -1470,6 +1470,49 @@ textarea {
   margin-bottom: 12px;
 }
 
+/* social sign-in button + "or" divider */
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 13px;
+  font-weight: 600;
+  font-size: 15px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  transition: 0.16s;
+}
+.social-btn:hover {
+  background: #fff;
+  border-color: rgba(23, 18, 14, 0.22);
+}
+.social-btn:disabled {
+  opacity: 0.6;
+}
+.social-btn .g {
+  flex: none;
+}
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-mute);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0;
+}
+.or-divider::before,
+.or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 /* ------- splash ------- */
 .splash {
   min-height: 100vh;

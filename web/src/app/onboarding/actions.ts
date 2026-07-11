@@ -30,17 +30,22 @@ export async function completeOnboarding(input: OnboardingInput) {
     styleDna,
   }
 
-  // profiles row is auto-created on signup; upsert keeps this safe either way.
+  // Upsert (not update): if the profiles row is ever missing — e.g. the signup
+  // trigger didn't fire — an update would hit 0 rows and trap the user in an
+  // onboarding loop. Upsert creates the row when needed.
   const { error } = await supabase
     .from('profiles')
-    .update({
-      display_name: input.name.trim() || null,
-      gender: input.gender || null,
-      style_preferences,
-      onboarded: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', user.id)
+    .upsert(
+      {
+        id: user.id,
+        display_name: input.name.trim() || null,
+        gender: input.gender || null,
+        style_preferences,
+        onboarded: true,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' },
+    )
 
   if (error) throw new Error(error.message)
 

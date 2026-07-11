@@ -1,24 +1,14 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthState } from '@/lib/authRouting'
 import { HangerLogo } from '@/components/HangerLogo'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Home() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarded')
-      .eq('id', user.id)
-      .maybeSingle()
-    redirect(profile?.onboarded ? '/closet' : '/onboarding')
-  }
+  // Logged-in users skip the marketing splash entirely.
+  const { path } = await getAuthState()
+  if (path) redirect(path)
 
   return (
     <main className="splash">

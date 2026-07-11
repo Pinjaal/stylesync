@@ -5,15 +5,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { HangerLogo } from '@/components/HangerLogo'
+import { GoogleButton } from '@/components/GoogleButton'
 import { AuthBrandPanel } from './AuthBrandPanel'
 import { createClient } from '@/lib/supabase/client'
 
-export function LoginForm() {
+export function LoginForm({ initialError }: { initialError?: string }) {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError ?? null)
 
   async function login() {
     setError(null)
@@ -51,6 +52,9 @@ export function LoginForm() {
         <div className="auth-h">Welcome back</div>
         <div className="auth-sub">Log in to your digital closet.</div>
       </div>
+
+      <GoogleButton />
+      <div className="or-divider">or</div>
 
       {error && <p className="alert">{error}</p>}
 

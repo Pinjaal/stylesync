@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Loader2 } from 'lucide-react'
 import { HangerLogo } from '@/components/HangerLogo'
+import { GoogleButton } from '@/components/GoogleButton'
 import { AuthBrandPanel } from './AuthBrandPanel'
 import { createClient } from '@/lib/supabase/client'
 
@@ -116,6 +117,13 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
                 : 'First, verify your email with a quick code.'}
             </div>
           </div>
+
+          {!reset && (
+            <>
+              <GoogleButton />
+              <div className="or-divider">or</div>
+            </>
+          )}
 
           {error && <p className="alert">{error}</p>}
 
