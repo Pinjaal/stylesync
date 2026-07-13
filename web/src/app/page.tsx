@@ -20,12 +20,12 @@ export default async function Home() {
       </div>
       <div className="splash-sub">Your closet, styled.</div>
       <div className="splash-cta">
-        <Link href="/signup" className="btn">
-          Get started
+        <Link href="/try" className="btn">
+          Try it free — no signup
         </Link>
       </div>
       <div className="splash-note">
-        Already have an account? <Link href="/login">Log in</Link>
+        <Link href="/signup">Create account</Link> · <Link href="/login">Log in</Link>
       </div>
     </main>
   )

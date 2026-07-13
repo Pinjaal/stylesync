@@ -1470,6 +1470,92 @@ textarea {
   margin-bottom: 12px;
 }
 
+/* ------- guest demo (/try) ------- */
+.try-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 10px;
+}
+.try-topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.try-topbar .brand svg {
+  width: 30px;
+  height: 30px;
+}
+.try-topbar .wm {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+}
+.try-topbar .wm em {
+  font-style: italic;
+}
+.demo-chip {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-tint);
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+}
+.try-login {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 22px 12px;
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: 14px;
+  padding: 11px 12px 11px 15px;
+  font-size: 13px;
+}
+.demo-banner b {
+  font-weight: 700;
+}
+.demo-banner span {
+  flex: 1;
+}
+.demo-banner .db-cta {
+  flex: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 6px 13px;
+  border-radius: var(--r-pill);
+  text-decoration: none;
+}
+.demo-banner .db-x {
+  flex: none;
+  color: rgba(250, 246, 238, 0.6);
+  display: flex;
+  padding: 2px;
+}
+.try-cta {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-xl);
+  padding: 22px;
+  text-align: center;
+}
+.try-cta em {
+  color: var(--accent);
+}
+
 /* social sign-in button + "or" divider */
 .social-btn {
   display: flex;
