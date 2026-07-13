@@ -25,6 +25,10 @@ export const DEMO_ITEMS: DemoItem[] = [
   { id: 'blockprint-kurta', label: 'Block-print kurta', category: 'ethnic', subcategory: 'kurta', colors: ['teal'], imageUrl: '/demo/1000209084.jpg', bucket: 'Dresses', timesWorn: 4 },
   { id: 'brown-satin-kurti', label: 'Brown mirror-work kurti', category: 'ethnic', subcategory: 'kurti', colors: ['brown'], imageUrl: '/demo/1000209085.jpg', bucket: 'Ethnic', timesWorn: 6 },
   { id: 'pink-paisley-kurti', label: 'Pink paisley kurti', category: 'ethnic', subcategory: 'kurti', colors: ['pink'], imageUrl: '/demo/1000209087.jpg', bucket: 'Ethnic', timesWorn: 3 },
+  { id: 'black-bow-dress', label: 'Black bow mini dress', category: 'dress', subcategory: 'mini dress', colors: ['black', 'cream'], imageUrl: '/demo/2025_Lulu_9_29-30_25_Look_2_Day_1_0225-Copy.webp', bucket: 'Dresses', timesWorn: 2 },
+  { id: 'brown-draped-maxi', label: 'Brown draped maxi dress', category: 'dress', subcategory: 'maxi dress', colors: ['brown'], imageUrl: '/demo/4_33cc8744-bbc1-4e6f-a1bb-6c094f5febc4.webp', bucket: 'Dresses', timesWorn: 1 },
+  { id: 'black-sequin-dress', label: 'Black sequin mini dress', category: 'dress', subcategory: 'bodycon dress', colors: ['black'], imageUrl: '/demo/654885837b6db1676ccdf37a_1699251587837.jpg', bucket: 'Dresses', timesWorn: 3 },
+  { id: 'red-lace-dress', label: 'Red lace-sleeve mini dress', category: 'dress', subcategory: 'mini dress', colors: ['red'], imageUrl: '/demo/IMG_8192.webp', bucket: 'Dresses', timesWorn: 1 },
 ]
 
 const BY_ID = new Map(DEMO_ITEMS.map((i) => [i.id, i]))
