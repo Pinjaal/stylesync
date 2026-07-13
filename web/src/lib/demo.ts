@@ -23,8 +23,8 @@ export const DEMO_ITEMS: DemoItem[] = [
   { id: 'wide-blue-jeans', label: 'Wide-leg blue jeans', category: 'bottom', subcategory: 'jeans', colors: ['denim'], imageUrl: '/demo/1000209082.jpg', bucket: 'Bottoms', timesWorn: 15 },
   { id: 'flared-jeans', label: 'Flared blue jeans', category: 'bottom', subcategory: 'jeans', colors: ['blue'], imageUrl: '/demo/1000209083.jpg', bucket: 'Bottoms', timesWorn: 10 },
   { id: 'blockprint-kurta', label: 'Block-print kurta', category: 'ethnic', subcategory: 'kurta', colors: ['teal'], imageUrl: '/demo/1000209084.jpg', bucket: 'Dresses', timesWorn: 4 },
-  { id: 'brown-satin-dress', label: 'Brown satin dress', category: 'dress', subcategory: 'mini dress', colors: ['brown'], imageUrl: '/demo/1000209085.jpg', bucket: 'Dresses', timesWorn: 6 },
-  { id: 'pink-paisley-dress', label: 'Pink printed dress', category: 'dress', subcategory: 'dress', colors: ['pink'], imageUrl: '/demo/1000209087.jpg', bucket: 'Dresses', timesWorn: 3 },
+  { id: 'brown-satin-dress', label: 'Brown mirror-work kurti', category: 'ethnic', subcategory: 'kurti', colors: ['brown'], imageUrl: '/demo/1000209085.jpg', bucket: 'Ethnic', timesWorn: 6 },
+  { id: 'pink-paisley-dress', label: 'Pink paisley kurti', category: 'ethnic', subcategory: 'kurti', colors: ['pink'], imageUrl: '/demo/1000209087.jpg', bucket: 'Ethnic', timesWorn: 3 },
 ]
 
 const BY_ID = new Map(DEMO_ITEMS.map((i) => [i.id, i]))
@@ -32,41 +32,7 @@ export function demoItems(ids: string[]): DemoItem[] {
   return ids.map((id) => BY_ID.get(id)).filter(Boolean) as DemoItem[]
 }
 
-export interface DemoLook {
-  title: string
-  reasoning: string
-  tips: string[]
-  match: number
-  itemIds: string[]
-}
-
 export const OCCASIONS = ['Casual', 'Work', 'Party', 'Date'] as const
-
-export const DEMO_LOOKS: Record<string, DemoLook[]> = {
-  Casual: [
-    { title: 'Sunny denim', match: 94, itemIds: ['yellow-gingham-top', 'wide-blue-jeans'], reasoning: 'Yellow gingham cami with wide-leg blue jeans — fresh and easy for the weekend.', tips: ['Half-tuck the top'] },
-    { title: 'Off-duty stripes', match: 90, itemIds: ['blue-stripe-shirt', 'cream-cords'], reasoning: 'Blue striped shirt with cream corduroys — soft, tonal, and effortless.', tips: ['Roll the sleeves'] },
-    { title: 'Sporty ease', match: 88, itemIds: ['navy-babydoll', 'black-trackpants'], reasoning: 'Navy tiered top over black track pants — relaxed athleisure with a cute twist.', tips: ['Add white sneakers'] },
-  ],
-  Work: [
-    { title: 'Pinstripe polish', match: 96, itemIds: ['navy-pinstripe-shirt', 'brown-trousers'], reasoning: 'Fitted pinstripe shirt with brown wide-leg trousers — sharp and office-ready.', tips: ['Tuck it in'] },
-    { title: 'Soft tailoring', match: 91, itemIds: ['yellow-linen-shirt', 'cream-cords'], reasoning: 'Yellow linen shirt with cream cords — warm, calm, and put-together.', tips: ['Cuff the trousers'] },
-  ],
-  Party: [
-    { title: 'Satin night', match: 95, itemIds: ['brown-satin-dress'], reasoning: 'Brown satin mini with subtle sparkle — understated evening glam.', tips: ['Gold hoops finish it'] },
-    { title: 'Print play', match: 90, itemIds: ['pink-paisley-dress'], reasoning: 'Pink printed dress with a bow — playful and party-ready.', tips: ['Keep jewellery simple'] },
-    { title: 'Festive block-print', match: 89, itemIds: ['blockprint-kurta'], reasoning: 'Block-print kurta — easy festive charm with a modern cut.', tips: ['Add juttis or heels'] },
-  ],
-  Date: [
-    { title: 'Floral romance', match: 93, itemIds: ['cream-floral-dress'], reasoning: 'Cream floral slip dress — romantic and light for a dinner date.', tips: ['Layer a jacket if it cools down'] },
-    { title: 'Flare & tie', match: 90, itemIds: ['navy-babydoll', 'flared-jeans'], reasoning: 'Navy tiered top with light flared jeans — flirty and relaxed.', tips: ['Front-tuck the top'] },
-    { title: 'Skirt & stripes', match: 88, itemIds: ['blue-stripe-shirt', 'sage-skirt'], reasoning: 'Blue striped shirt with a sage eyelet skirt — sweet and summery.', tips: ['Tie the skirt neatly'] },
-  ],
-}
-
-export function allDemoLooks(): DemoLook[] {
-  return OCCASIONS.flatMap((o) => DEMO_LOOKS[o])
-}
 
 // ── Demo community feed ───────────────────────────────────────────────────
 export interface DemoPost {
