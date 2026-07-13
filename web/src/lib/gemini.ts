@@ -79,6 +79,22 @@ export interface ItemAttributes {
 }
 
 export async function extractAttributes(pngBuffer: Buffer): Promise<ItemAttributes> {
+  // Run tagging through OpenRouter when configured, falling back to Gemini on
+  // any failure so adding items can never fully break.
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      return await extractViaOpenRouter(pngBuffer)
+    } catch (err) {
+      console.error(
+        '[tagging] OpenRouter failed, falling back to Gemini:',
+        err instanceof Error ? err.message : err,
+      )
+    }
+  }
+  return extractViaGemini(pngBuffer)
+}
+
+async function extractViaGemini(pngBuffer: Buffer): Promise<ItemAttributes> {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
@@ -88,18 +104,56 @@ export async function extractAttributes(pngBuffer: Buffer): Promise<ItemAttribut
     },
     systemInstruction: SYSTEM,
   })
-
   const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: 'image/png',
-        data: pngBuffer.toString('base64'),
-      },
-    },
+    { inlineData: { mimeType: 'image/png', data: pngBuffer.toString('base64') } },
     { text: 'Extract the attributes of this clothing item.' },
   ])
-
   return JSON.parse(result.response.text())
+}
+
+// Vision tagging via OpenRouter. Needs a multimodal model — defaults to
+// OPENROUTER_VISION_MODEL, else OPENROUTER_MODEL, else Gemini Flash.
+async function extractViaOpenRouter(pngBuffer: Buffer): Promise<ItemAttributes> {
+  const model =
+    process.env.OPENROUTER_VISION_MODEL ||
+    process.env.OPENROUTER_MODEL ||
+    'google/gemini-2.5-flash'
+  const dataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`
+  const system = `${SYSTEM}
+
+Return ONLY a valid JSON object with these keys (omit any you're unsure of): category, subcategory, colors (array of strings), pattern, fabric, fit, sleeve_length, neck_type, occasions (array), seasons (array), features (array), description. No markdown, no prose.`
+
+  const res = await openrouter().chat.completions.create({
+    model,
+    temperature: 0.2,
+    messages: [
+      { role: 'system', content: system },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Extract the attributes of this clothing item.' },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+  })
+  const text = res.choices[0]?.message?.content ?? ''
+  const p = JSON.parse(extractJson(text)) as Partial<ItemAttributes>
+  // Normalise so the shape is always valid regardless of the model.
+  return {
+    category: p.category ?? 'other',
+    subcategory: p.subcategory,
+    colors: p.colors ?? [],
+    pattern: p.pattern,
+    fabric: p.fabric,
+    fit: p.fit,
+    sleeve_length: p.sleeve_length,
+    neck_type: p.neck_type,
+    occasions: p.occasions ?? [],
+    seasons: p.seasons ?? [],
+    features: p.features ?? [],
+    description: p.description ?? '',
+  }
 }
 
 const outfitSchema = {
