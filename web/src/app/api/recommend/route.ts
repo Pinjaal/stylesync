@@ -61,21 +61,42 @@ export async function POST(req: Request) {
     if (error) {
       return NextResponse.json({ error: `Retrieval failed: ${error.message}` }, { status: 500 })
     }
-    let cands = (candidates ?? []) as Candidate[]
+    const cands = (candidates ?? []) as Candidate[]
+    const seen = new Set(cands.map((c) => c.id))
+    const pushUnique = (rows: Omit<Candidate, 'similarity'>[]) => {
+      for (const i of rows) {
+        if (!seen.has(i.id)) {
+          cands.push({ ...i, similarity: 0 })
+          seen.add(i.id)
+        }
+      }
+    }
+    const ITEM_COLS = 'id, category, subcategory, colors, description, cleaned_image_key'
 
-    // Fallback: the occasion/season-filtered vector search found nothing (small
-    // closet, or clothes tagged for other occasions). Rather than fail, compose
-    // from the whole active wardrobe and let the stylist pick what fits.
-    if (cands.length === 0) {
+    // The vector search (match_items) applies a similarity cut-off. CLIP's text→image
+    // scores are naturally low (~0.2-0.3), so that cut-off routinely starves the
+    // stylist down to 1-3 items even when the closet has many occasion-appropriate
+    // pieces — which produces thin, repetitive outfits. When the ranked set is thin,
+    // top it up with items TAGGED for this occasion so the LLM has enough to work with.
+    if (cands.length < 8) {
+      const { data: tagged } = await supabase
+        .from('items')
+        .select(ITEM_COLS)
+        .eq('is_active', true)
+        .contains('occasions', [occasion.toLowerCase()])
+        .limit(24)
+      pushUnique((tagged ?? []) as Omit<Candidate, 'similarity'>[])
+    }
+
+    // Still thin (e.g. clothes tagged for other occasions)? Fall back to the
+    // whole active wardrobe rather than fail.
+    if (cands.length < 4) {
       const { data: allItems } = await supabase
         .from('items')
-        .select('id, category, subcategory, colors, description, cleaned_image_key')
+        .select(ITEM_COLS)
         .eq('is_active', true)
         .limit(40)
-      cands = ((allItems ?? []) as Omit<Candidate, 'similarity'>[]).map((i) => ({
-        ...i,
-        similarity: 0,
-      }))
+      pushUnique((allItems ?? []) as Omit<Candidate, 'similarity'>[])
     }
 
     if (cands.length === 0) {
