@@ -50,8 +50,24 @@ export function GuestStyle() {
   const [prompt, setPrompt] = useState('')
   const [looks, setLooks] = useState<Look[]>([])
   const [thinking, setThinking] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [count, setCount] = useState(0)
   const [gate, setGate] = useState<{ open: boolean; title?: string; message?: string }>({ open: false })
+
+  // When the deck runs low, fetch MORE looks from the LLM — never pad with the
+  // static presets (that was surfacing the old kurti-for-party recommendations).
+  async function needMore() {
+    if (loadingMore) return
+    setLoadingMore(true)
+    try {
+      const more = await llmLooks(occasion, prompt.trim())
+      setLooks((l) => [...l, ...more])
+    } catch {
+      /* LLM unavailable — stop rather than inject preset looks */
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   async function styleMe() {
     setThinking(true)
@@ -80,8 +96,8 @@ export function GuestStyle() {
       <>
         <SwipeDeck
           looks={looks}
-          loadingMore={false}
-          onNeedMore={() => setLooks((l) => [...l, ...shuffle(allDemoLooks().map(toLook))])}
+          loadingMore={loadingMore}
+          onNeedMore={needMore}
           onReshuffle={() => styleMe()}
           onSave={() =>
             setGate({ open: true, title: 'Log in to save looks', message: 'Sign up to save outfits you love.' })
