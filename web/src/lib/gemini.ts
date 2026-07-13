@@ -3,6 +3,11 @@ import OpenAI from 'openai'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
+// Gemini model slug. `gemini-flash-latest` is an alias Google keeps pointed at
+// the current stable Flash model — pinned slugs like `gemini-2.5-flash` get cut
+// off for new API keys ("no longer available to new users"). Override via env.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest'
+
 // OpenRouter (OpenAI-compatible) — used for outfit composition when a key is set.
 // Swap the LLM by changing OPENROUTER_MODEL (any slug from openrouter.ai/models).
 let _openrouter: OpenAI | null = null
@@ -96,7 +101,7 @@ export async function extractAttributes(pngBuffer: Buffer): Promise<ItemAttribut
 
 async function extractViaGemini(pngBuffer: Buffer): Promise<ItemAttributes> {
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_MODEL,
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: attributeSchema,
@@ -253,7 +258,7 @@ async function composeViaGemini(
   ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
 ): Promise<ComposedOutfit[]> {
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_MODEL,
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: outfitSchema,
