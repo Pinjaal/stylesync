@@ -223,6 +223,14 @@ export async function composeOutfits(
   candidates: OutfitCandidate[],
   ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
 ): Promise<ComposedOutfit[]> {
+  // Diagnostic: confirms whether the running deployment actually sees the key.
+  console.log(
+    '[stylist] provider check — OpenRouter key present:',
+    !!process.env.OPENROUTER_API_KEY,
+    '· model:',
+    process.env.OPENROUTER_MODEL ?? '(default gemini-2.5-flash)',
+  )
+
   // Prefer OpenRouter when configured, but NEVER let it take the whole feature
   // down — if it errors (bad model slug, no credits, provider outage), fall
   // back to Gemini so the stylist keeps working.
