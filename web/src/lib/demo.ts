@@ -23,8 +23,8 @@ export const DEMO_ITEMS: DemoItem[] = [
   { id: 'wide-blue-jeans', label: 'Wide-leg blue jeans', category: 'bottom', subcategory: 'jeans', colors: ['denim'], imageUrl: '/demo/1000209082.jpg', bucket: 'Bottoms', timesWorn: 15 },
   { id: 'flared-jeans', label: 'Flared blue jeans', category: 'bottom', subcategory: 'jeans', colors: ['blue'], imageUrl: '/demo/1000209083.jpg', bucket: 'Bottoms', timesWorn: 10 },
   { id: 'blockprint-kurta', label: 'Block-print kurta', category: 'ethnic', subcategory: 'kurta', colors: ['teal'], imageUrl: '/demo/1000209084.jpg', bucket: 'Dresses', timesWorn: 4 },
-  { id: 'brown-satin-dress', label: 'Brown mirror-work kurti', category: 'ethnic', subcategory: 'kurti', colors: ['brown'], imageUrl: '/demo/1000209085.jpg', bucket: 'Ethnic', timesWorn: 6 },
-  { id: 'pink-paisley-dress', label: 'Pink paisley kurti', category: 'ethnic', subcategory: 'kurti', colors: ['pink'], imageUrl: '/demo/1000209087.jpg', bucket: 'Ethnic', timesWorn: 3 },
+  { id: 'brown-satin-kurti', label: 'Brown mirror-work kurti', category: 'ethnic', subcategory: 'kurti', colors: ['brown'], imageUrl: '/demo/1000209085.jpg', bucket: 'Ethnic', timesWorn: 6 },
+  { id: 'pink-paisley-kurti', label: 'Pink paisley kurti', category: 'ethnic', subcategory: 'kurti', colors: ['pink'], imageUrl: '/demo/1000209087.jpg', bucket: 'Ethnic', timesWorn: 3 },
 ]
 
 const BY_ID = new Map(DEMO_ITEMS.map((i) => [i.id, i]))
@@ -54,5 +54,5 @@ export interface DemoPost {
 export const DEMO_POSTS: DemoPost[] = [
   { id: 'p1', name: 'Maya K.', initial: 'M', bg: '#C9B6F0', color: '#4A3B6B', location: 'Mumbai', style: 'Old Money', timeLabel: '2h', challengeTag: 'DenimWeek', caption: 'wide-leg denim, kept soft 🤍 #DenimWeek', likeCount: 1204, commentCount: 88, itemIds: ['navy-babydoll', 'wide-blue-jeans'] },
   { id: 'p2', name: 'Rhea', initial: 'R', bg: '#C7D0BC', color: '#4C5A41', location: 'Bengaluru', style: 'Minimal', timeLabel: '5h', challengeTag: null, caption: 'tonal and easy — my forever formula 🌿', likeCount: 744, commentCount: 32, itemIds: ['blue-stripe-shirt', 'cream-cords'] },
-  { id: 'p3', name: 'Jai W.', initial: 'J', bg: '#D8B7A4', color: '#7A5638', location: 'Delhi', style: 'Street', timeLabel: '1d', challengeTag: null, caption: 'date night, satin brown never fails 🔥', likeCount: 602, commentCount: 21, itemIds: ['brown-satin-dress'] },
+  { id: 'p3', name: 'Jai W.', initial: 'J', bg: '#D8B7A4', color: '#7A5638', location: 'Delhi', style: 'Street', timeLabel: '1d', challengeTag: null, caption: 'date night, brown kurti never fails 🔥', likeCount: 602, commentCount: 21, itemIds: ['brown-satin-kurti'] },
 ]
