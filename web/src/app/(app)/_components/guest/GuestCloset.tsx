@@ -53,9 +53,14 @@ export function GuestCloset() {
             className="mtile"
             style={{ height: tileHeight(it.id), background: `${colorHex(it.colors)}22` }}
           >
-            <div className="glyphwrap">
-              <Glyph category={it.category} subcategory={it.subcategory} color={colorHex(it.colors)} />
-            </div>
+            {it.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={it.imageUrl} alt={it.label} />
+            ) : (
+              <div className="glyphwrap">
+                <Glyph category={it.category} subcategory={it.subcategory} color={colorHex(it.colors)} />
+              </div>
+            )}
             {it.timesWorn > 0 && <div className="mbadge">{it.timesWorn}×</div>}
             <div className="mlabel">
               <span className="dot" style={{ background: colorHex(it.colors) }} />
