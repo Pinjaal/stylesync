@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { PlusSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveChallenge, getStories, getFeed, type ActiveChallenge, type Story, type FeedPost } from './data'
 import { PostCard } from './_components/PostCard'
+import { GuestCommunity } from '../_components/guest/GuestCommunity'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +20,7 @@ export default async function CommunityPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return <GuestCommunity />
 
   const [challenge, stories, feed] = await Promise.all([
     safe<ActiveChallenge | null>(() => getActiveChallenge(supabase), null),

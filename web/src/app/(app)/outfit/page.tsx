@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StyleClient } from './StyleClient'
 import { computeStreak } from '@/lib/streak'
+import { GuestStyle } from '../_components/guest/GuestStyle'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,7 @@ export default async function OutfitPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return <GuestStyle />
 
   const [{ data: profile }, { data: outfitRows }] = await Promise.all([
     supabase

@@ -12,25 +12,23 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Gate the app behind onboarding so Spark always has a style profile to work with.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('onboarded')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.onboarded) {
-    redirect('/onboarding')
+  // Guests may browse the app (demo content); account-only actions prompt login.
+  // Logged-in users must finish onboarding first.
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarded')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (!profile?.onboarded) {
+      redirect('/onboarding')
+    }
   }
 
   return (
     <div className="shell">
       <main className="app-scroll">{children}</main>
-      <BottomNav />
+      <BottomNav isGuest={!user} />
     </div>
   )
 }

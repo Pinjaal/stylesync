@@ -5,16 +5,18 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Home, Users, User, Plus } from 'lucide-react'
 import { Spark } from '@/components/Spark'
+import { LoginPrompt } from '@/components/LoginPrompt'
 import { uploadItems } from '@/lib/uploadItems'
 
 const STAGES = ['Removing the background…', 'Tagging with AI…', 'Saving to your closet…']
 
-export function BottomNav() {
+export function BottomNav({ isGuest = false }: { isGuest?: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState(0)
+  const [prompt, setPrompt] = useState(false)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => () => {
@@ -57,7 +59,7 @@ export function BottomNav() {
 
         <button
           className="navfab"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => (isGuest ? setPrompt(true) : inputRef.current?.click())}
           disabled={busy}
           aria-label="Add a piece"
         >
@@ -99,6 +101,13 @@ export function BottomNav() {
           </div>
         </div>
       )}
+
+      <LoginPrompt
+        open={prompt}
+        onClose={() => setPrompt(false)}
+        title="Log in to add clothes"
+        message="Sign up to upload your wardrobe and get outfits styled from your own pieces."
+      />
     </>
   )
 }

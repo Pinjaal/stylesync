@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { Spark } from '@/components/Spark'
 import { Sparkles, BarChart3, Bell, LogOut, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/app/auth/actions'
 import type { StylePreferences } from '@/lib/styleDna'
+import { GuestProfile } from '../_components/guest/GuestProfile'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +13,7 @@ export default async function ProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return <GuestProfile />
 
   const [{ data: profile }, itemsRes, outfitsRes] = await Promise.all([
     supabase

@@ -4,6 +4,7 @@ import { bucketFor } from '@/components/Glyph'
 import { colorHex } from '@/lib/colors'
 import { loadSegments } from './segments-actions'
 import { ClosetView, type ClosetItem } from './_components/ClosetView'
+import { GuestCloset } from '../_components/guest/GuestCloset'
 
 // Always render fresh so newly uploaded items show up after router.refresh()
 export const dynamic = 'force-dynamic'
@@ -20,6 +21,10 @@ interface Row {
 
 export default async function ClosetPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return <GuestCloset />
 
   const [itemsRes, outfitsRes, segments] = await Promise.all([
     supabase
