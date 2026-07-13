@@ -41,6 +41,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
   themeColor: '#ee4127',
 }
 
@@ -54,7 +58,9 @@ export default function RootLayout({
       lang="en"
       className={`${bodoni.variable} ${space.variable} ${spaceMono.variable} h-full antialiased`}
     >
-      <body>
+      {/* suppressHydrationWarning: browser extensions (e.g. Grammarly) inject
+          attributes onto <body> before React hydrates — harmless, so ignore it. */}
+      <body suppressHydrationWarning>
         <ServiceWorkerRegister />
         {children}
       </body>

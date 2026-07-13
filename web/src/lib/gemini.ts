@@ -1,6 +1,34 @@
 import { GoogleGenerativeAI, SchemaType, Schema } from '@google/generative-ai'
+import OpenAI from 'openai'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+
+// OpenRouter (OpenAI-compatible) — used for outfit composition when a key is set.
+// Swap the LLM by changing OPENROUTER_MODEL (any slug from openrouter.ai/models).
+let _openrouter: OpenAI | null = null
+function openrouter(): OpenAI {
+  if (!_openrouter) {
+    _openrouter = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY,
+      defaultHeaders: {
+        'HTTP-Referer': 'https://stylesync-murex.vercel.app',
+        'X-Title': 'StyleSync',
+      },
+    })
+  }
+  return _openrouter
+}
+
+// Pull a JSON object out of a model reply (handles ```json fences / stray prose).
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const body = fenced ? fenced[1] : text
+  const start = body.indexOf('{')
+  const end = body.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('LLM did not return JSON')
+  return body.slice(start, end + 1)
+}
 
 // Structured output schema — Gemini will return JSON matching this exactly
 const attributeSchema = {
@@ -111,21 +139,13 @@ export interface ComposedOutfit {
   confidence?: number
 }
 
-export async function composeOutfits(
+const COMPOSE_SYSTEM = `You are a fashion stylist. From ONLY the candidate items provided, compose 2-3 complete outfits that fit the user's request. Each outfit should usually include a top + bottom (or a dress), plus optional outerwear/footwear/accessory. Use only item IDs that appear in the candidates. Prioritize color coordination and occasion appropriateness. Give each outfit a short, punchy editorial 'title' (2-4 words, e.g. "Date-night drama", "Quiet luxury Monday"). In 'reasoning', explain each outfit in one or two sentences. In 'style_tips', give 2-3 very short actionable tips.`
+
+function composePrompt(
   candidates: OutfitCandidate[],
   ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
-): Promise<ComposedOutfit[]> {
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: outfitSchema,
-      temperature: 0.4, // a little variety across the 2-3 looks; items stay constrained
-    },
-    systemInstruction: `You are a fashion stylist. From ONLY the candidate items provided, compose 2-3 complete outfits that fit the user's request. Each outfit should usually include a top + bottom (or a dress), plus optional outerwear/footwear/accessory. Use only item IDs that appear in the candidates. Prioritize color coordination and occasion appropriateness. Give each outfit a short, punchy editorial 'title' (2-4 words, e.g. "Date-night drama", "Quiet luxury Monday"). In 'reasoning', explain each outfit in one or two sentences. In 'style_tips', give 2-3 very short actionable tips.`,
-  })
-
-  const prompt = `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(
+): string {
+  return `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(
     ctx.weather ?? {},
   )}, style=${ctx.styleQuery || 'no preference'}
 
@@ -143,8 +163,68 @@ ${JSON.stringify(
 )}
 
 Compose 2-3 outfits.`
+}
 
-  const result = await model.generateContent(prompt)
+export async function composeOutfits(
+  candidates: OutfitCandidate[],
+  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+): Promise<ComposedOutfit[]> {
+  // Prefer OpenRouter when configured, but NEVER let it take the whole feature
+  // down — if it errors (bad model slug, no credits, provider outage), fall
+  // back to Gemini so the stylist keeps working.
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      return await composeViaOpenRouter(candidates, ctx)
+    } catch (err) {
+      console.error(
+        '[stylist] OpenRouter failed, falling back to Gemini:',
+        err instanceof Error ? err.message : err,
+      )
+    }
+  }
+  return composeViaGemini(candidates, ctx)
+}
+
+// Native Gemini path (structured output via schema).
+async function composeViaGemini(
+  candidates: OutfitCandidate[],
+  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+): Promise<ComposedOutfit[]> {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: outfitSchema,
+      temperature: 0.4, // a little variety across the 2-3 looks; items stay constrained
+    },
+    systemInstruction: COMPOSE_SYSTEM,
+  })
+  const result = await model.generateContent(composePrompt(candidates, ctx))
   const parsed = JSON.parse(result.response.text()) as { outfits: ComposedOutfit[] }
+  return parsed.outfits ?? []
+}
+
+// Model-agnostic composition through OpenRouter. Works with any chat model
+// (Claude, GPT, Llama, Gemini…) — JSON is requested in-prompt and parsed defensively.
+async function composeViaOpenRouter(
+  candidates: OutfitCandidate[],
+  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+): Promise<ComposedOutfit[]> {
+  const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash'
+  const system = `${COMPOSE_SYSTEM}
+
+Return ONLY a valid JSON object of exactly this shape — no markdown fences, no prose:
+{"outfits":[{"title":"string","item_ids":["string"],"reasoning":"string","style_tips":["string"],"confidence":0.9}]}`
+
+  const res = await openrouter().chat.completions.create({
+    model,
+    temperature: 0.4,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: composePrompt(candidates, ctx) },
+    ],
+  })
+  const text = res.choices[0]?.message?.content ?? ''
+  const parsed = JSON.parse(extractJson(text)) as { outfits: ComposedOutfit[] }
   return parsed.outfits ?? []
 }

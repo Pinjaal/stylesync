@@ -44,6 +44,7 @@ export function StyleClient({
 
   const [looks, setLooks] = useState<Look[]>([])
   const [generating, setGenerating] = useState(false)
+  const [genError, setGenError] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [activeLook, setActiveLook] = useState<Look | null>(null)
   const backTo = useRef<View>('home')
@@ -109,12 +110,13 @@ export function StyleClient({
     const styleQuery = [quick, prompt.trim()].filter(Boolean).join(', ') || undefined
     lastReq.current = { occasion, styleQuery }
     setGenerating(true)
+    setGenError(null)
     try {
       const got = await fetchLooks(occasion, styleQuery)
       setLooks(got)
       setView('deck')
-    } catch {
-      /* surfaced by today error area is enough; keep silent here */
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : 'Could not style right now. Please try again.')
     } finally {
       setGenerating(false)
     }
@@ -340,6 +342,11 @@ export function StyleClient({
             </>
           )}
         </button>
+        {genError && (
+          <p className="alert" style={{ marginTop: 12 }}>
+            {genError}
+          </p>
+        )}
       </div>
     </>
   )
