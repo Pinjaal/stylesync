@@ -61,13 +61,26 @@ export async function POST(req: Request) {
     if (error) {
       return NextResponse.json({ error: `Retrieval failed: ${error.message}` }, { status: 500 })
     }
-    const cands = (candidates ?? []) as Candidate[]
+    let cands = (candidates ?? []) as Candidate[]
+
+    // Fallback: the occasion/season-filtered vector search found nothing (small
+    // closet, or clothes tagged for other occasions). Rather than fail, compose
+    // from the whole active wardrobe and let the stylist pick what fits.
+    if (cands.length === 0) {
+      const { data: allItems } = await supabase
+        .from('items')
+        .select('id, category, subcategory, colors, description, cleaned_image_key')
+        .eq('is_active', true)
+        .limit(40)
+      cands = ((allItems ?? []) as Omit<Candidate, 'similarity'>[]).map((i) => ({
+        ...i,
+        similarity: 0,
+      }))
+    }
+
     if (cands.length === 0) {
       return NextResponse.json(
-        {
-          error:
-            'No matching items for that request. Try a different occasion/season, or add more clothes.',
-        },
+        { error: 'Your closet is empty — add a few clothes and I’ll style them for you.' },
         { status: 404 },
       )
     }
