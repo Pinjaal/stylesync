@@ -7,32 +7,11 @@ import { Spark } from '@/components/Spark'
 import { LoginPrompt } from '@/components/LoginPrompt'
 import { SwipeDeck } from '@/app/(app)/outfit/_components/SwipeDeck'
 import type { Look } from '@/app/(app)/outfit/_components/types'
-import { DEMO_LOOKS, OCCASIONS, allDemoLooks, demoItems, type DemoLook } from '@/lib/demo'
+import { OCCASIONS } from '@/lib/demo'
 
-function toLook(d: DemoLook): Look {
-  return {
-    id: null,
-    title: d.title,
-    reasoning: d.reasoning,
-    style_tips: d.tips,
-    confidence: d.match / 100,
-    items: demoItems(d.itemIds),
-  }
-}
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-// Preset fallback if the LLM is unavailable.
-function presetDeck(occasion: string): Look[] {
-  const first = (DEMO_LOOKS[occasion] ?? []).map(toLook)
-  return [...first, ...shuffle(allDemoLooks().map(toLook))]
-}
-
+// Guest styling is LLM-only — it composes looks from the demo closet via
+// /api/guest-recommend. No static preset fallback: if the model can't respond
+// we surface a retry rather than serving canned outfits.
 async function llmLooks(occasion: string, styleQuery: string): Promise<Look[]> {
   const res = await fetch('/api/guest-recommend', {
     method: 'POST',
@@ -51,11 +30,34 @@ export function GuestStyle() {
   const [looks, setLooks] = useState<Look[]>([])
   const [thinking, setThinking] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [count, setCount] = useState(0)
   const [gate, setGate] = useState<{ open: boolean; title?: string; message?: string }>({ open: false })
 
-  // When the deck runs low, fetch MORE looks from the LLM — never pad with the
-  // static presets (that was surfacing the old kurti-for-party recommendations).
+  async function styleMe() {
+    setThinking(true)
+    setError(null)
+    try {
+      const got = await llmLooks(occasion, prompt.trim())
+      setLooks(got)
+      setView('deck')
+      const n = count + 1
+      setCount(n)
+      if (n === 3) {
+        setGate({
+          open: true,
+          title: 'Enjoying Spark?',
+          message: 'Sign up for unlimited styling on the clothes you actually own — it’s free.',
+        })
+      }
+    } catch {
+      setError('Spark couldn’t style a look right now. Please try again in a moment.')
+    } finally {
+      setThinking(false)
+    }
+  }
+
+  // Top up the deck by asking the LLM for more looks — never inject presets.
   async function needMore() {
     if (loadingMore) return
     setLoadingMore(true)
@@ -63,31 +65,9 @@ export function GuestStyle() {
       const more = await llmLooks(occasion, prompt.trim())
       setLooks((l) => [...l, ...more])
     } catch {
-      /* LLM unavailable — stop rather than inject preset looks */
+      /* LLM unavailable — stop rather than pad with canned looks */
     } finally {
       setLoadingMore(false)
-    }
-  }
-
-  async function styleMe() {
-    setThinking(true)
-    let got: Look[]
-    try {
-      got = await llmLooks(occasion, prompt.trim())
-    } catch {
-      got = presetDeck(occasion) // LLM unavailable → curated fallback
-    }
-    setLooks(got)
-    setThinking(false)
-    setView('deck')
-    const n = count + 1
-    setCount(n)
-    if (n === 3) {
-      setGate({
-        open: true,
-        title: 'Enjoying Spark?',
-        message: 'Sign up for unlimited styling on the clothes you actually own — it’s free.',
-      })
     }
   }
 
@@ -175,6 +155,11 @@ export function GuestStyle() {
           <button className="btn style-cta" onClick={styleMe}>
             <Spark /> Style me
           </button>
+          {error && (
+            <p className="tiny" style={{ textAlign: 'center', marginTop: 10, color: 'var(--accent)' }}>
+              {error}
+            </p>
+          )}
           <p className="tiny dim" style={{ textAlign: 'center', marginTop: 10 }}>
             Swipe right to save · left to skip
           </p>
