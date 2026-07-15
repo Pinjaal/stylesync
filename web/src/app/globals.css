@@ -2056,8 +2056,14 @@ textarea {
 .collage.sm {
   height: 200px;
 }
+/* display:flex is load-bearing: .cell{flex:1} only resolves inside a flex parent.
+   As a block, .cell falls back to height:auto and the image sizes by
+   width x aspect-ratio — leaving a gap under short images and overflowing the
+   collage on wide ones. Flex pins .cell to the collage height so object-fit
+   crops as intended. */
 .collage .big {
   flex: 1.15;
+  display: flex;
 }
 .collage .col {
   flex: 1;
@@ -3437,16 +3443,6 @@ textarea {
   }
   .collage.sm {
     height: 280px;
-  }
-  /* .collage .big is display:block, so its .cell child has height:auto and the
-     image sizes itself by width x aspect-ratio, overflowing the collage. On a
-     phone .big is ~210px wide so that lands at ~280px and coincidentally matches
-     the collage height — the wider desktop column exposes the overflow (the look
-     spilling over the page, and the clipped strip in .post-media). Making .big a
-     flex container lets .cell{flex:1} resolve, so the image crops via object-fit
-     as intended. Scoped to desktop to keep the phone byte-identical. */
-  .collage .big {
-    display: flex;
   }
 
   /* ------- sidebar internals ------- */
