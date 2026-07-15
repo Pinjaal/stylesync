@@ -3438,6 +3438,16 @@ textarea {
   .collage.sm {
     height: 280px;
   }
+  /* .collage .big is display:block, so its .cell child has height:auto and the
+     image sizes itself by width x aspect-ratio, overflowing the collage. On a
+     phone .big is ~210px wide so that lands at ~280px and coincidentally matches
+     the collage height — the wider desktop column exposes the overflow (the look
+     spilling over the page, and the clipped strip in .post-media). Making .big a
+     flex container lets .cell{flex:1} resolve, so the image crops via object-fit
+     as intended. Scoped to desktop to keep the phone byte-identical. */
+  .collage .big {
+    display: flex;
+  }
 
   /* ------- sidebar internals ------- */
   .sidenav-brand {
