@@ -49,8 +49,11 @@ export function AppNav({
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/')
 
-  // Closet is the only route that wants the full-width column (4-col masonry).
-  const pageClass = isActive('/closet') ? ' page-closet' : ''
+  // Only the closet GRID wants the full-width column (4-col masonry). /closet/[id]
+  // is an item detail — it must not inherit that, or the hero band and stat cards
+  // stretch across the whole column.
+  const pageClass =
+    pathname === '/closet' ? ' page-closet' : isActive('/closet') ? ' page-item' : ''
 
   const addPiece = () => (isGuest ? setPrompt(true) : inputRef.current?.click())
 

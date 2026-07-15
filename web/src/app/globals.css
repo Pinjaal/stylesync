@@ -3411,6 +3411,21 @@ textarea {
     margin: 0 auto;
   }
 
+  /* Item detail (/closet/[id]). The design renders this as a rail — photo on top,
+     details underneath — so keep that composition rather than inventing a new one,
+     just at a comfortable reading width. Left full-width it becomes a 360px band
+     with the garment lost in the middle of it. */
+  .app-scroll.page-item {
+    max-width: 560px;
+  }
+  .app-scroll.page-item .idhero {
+    height: 460px;
+    border-radius: var(--r-xl);
+  }
+  .app-scroll.page-item .idhero .top-btn {
+    top: 18px;
+  }
+
   /* Kept as column-count (not the mockup's grid): grid would break
      .mtile{break-inside:avoid} and fight ClosetView's ragged tile heights. */
   .app-scroll.page-closet .masonry {
