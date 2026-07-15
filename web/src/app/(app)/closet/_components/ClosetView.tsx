@@ -20,7 +20,7 @@ export interface ClosetItem {
 
 const ORDER = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Other']
 const HEIGHTS = [150, 158, 172, 186, 200, 214, 238]
-const SEG_COLORS = ['#EE4127', '#F4C64E', '#C9B6F0', '#7FA98C', '#17120E']
+const SEG_COLORS = ['#C4462F', '#C2A46A', '#CBBDDD', '#C6CDBA', '#211E1A']
 
 // Stable pseudo-random tile height for the editorial masonry.
 function tileHeight(id: string) {

@@ -27,7 +27,7 @@ export async function loadSegments(): Promise<SegmentSummary[]> {
 
   const byId = new Map<string, SegmentSummary>()
   for (const s of segs) {
-    byId.set(s.id, { id: s.id, name: s.name, color: s.color ?? '#EE4127', itemIds: [] })
+    byId.set(s.id, { id: s.id, name: s.name, color: s.color ?? '#C4462F', itemIds: [] })
   }
   for (const m of members ?? []) {
     byId.get(m.segment_id)?.itemIds.push(m.item_id)

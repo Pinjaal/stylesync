@@ -3,7 +3,7 @@
 export function HangerLogo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 512 512" className={className} aria-hidden>
-      <rect x="16" y="16" width="480" height="480" rx="112" fill="#EE4127" />
+      <rect x="16" y="16" width="480" height="480" rx="112" fill="#C4462F" />
       <g
         fill="none"
         stroke="#FFFFFF"

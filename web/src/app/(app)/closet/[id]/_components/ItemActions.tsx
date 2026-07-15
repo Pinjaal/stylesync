@@ -69,7 +69,7 @@ export function ItemActions({ itemId }: { itemId: string }) {
           disabled={pending}
           aria-label="Remove from closet"
           title="Remove from closet"
-          style={{ color: 'var(--accent)', borderColor: 'rgba(238,65,39,.3)' }}
+          style={{ color: 'var(--accent)', borderColor: 'var(--accent-tint)' }}
         >
           <Trash2 size={18} />
         </button>

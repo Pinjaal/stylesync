@@ -1,27 +1,17 @@
 import type { Metadata, Viewport } from 'next'
-import { Bodoni_Moda, Space_Grotesk, Space_Mono } from 'next/font/google'
+import { Instrument_Sans } from 'next/font/google'
 import './globals.css'
 import { ServiceWorkerRegister } from './_components/ServiceWorkerRegister'
 
-const bodoni = Bodoni_Moda({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  style: ['normal', 'italic'],
-  variable: '--font-bodoni',
-  display: 'swap',
-})
-
-const space = Space_Grotesk({
+// One typeface for the whole app. The design direction is "one clear accent,
+// honest typography, no decorative clutter" — the Bodoni serif / Space Mono
+// pairing is retired. globals.css points --font-display/-body/-mono all here,
+// so every existing rule re-themes without being touched.
+const instrument = Instrument_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
-  variable: '--font-space',
-  display: 'swap',
-})
-
-const spaceMono = Space_Mono({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-space-mono',
+  style: ['normal', 'italic'],
+  variable: '--font-instrument',
   display: 'swap',
 })
 
@@ -45,7 +35,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: 'cover',
-  themeColor: '#ee4127',
+  themeColor: '#c4462f',
 }
 
 export default function RootLayout({
@@ -54,10 +44,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${bodoni.variable} ${space.variable} ${spaceMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${instrument.variable} h-full antialiased`}>
       {/* suppressHydrationWarning: browser extensions (e.g. Grammarly) inject
           attributes onto <body> before React hydrates — harmless, so ignore it. */}
       <body suppressHydrationWarning>
