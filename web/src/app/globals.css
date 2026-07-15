@@ -3438,11 +3438,26 @@ textarea {
     min-width: 0;
   }
 
+  /* Garment photos are portrait (~3:4). On a phone the hero is ~210x280 so it
+     already matches them, but a wide desktop column stretches the collage into a
+     landscape box and object-fit:cover then crops heads and hems off. Cap the
+     width so the hero stays near 3:4 and nothing meaningful is cut.
+     A single-item look renders ONLY .big (no .col), so it spans the full width —
+     :only-child catches exactly that case, which is why it needs its own cap. */
   .collage {
-    height: 380px;
+    height: 420px;
+    max-width: 620px;
+    margin-inline: auto;
   }
   .collage.sm {
     height: 280px;
+    max-width: 420px;
+  }
+  .collage:has(.big:only-child) {
+    max-width: 315px; /* 3:4 against 420px */
+  }
+  .collage.sm:has(.big:only-child) {
+    max-width: 210px; /* 3:4 against 280px */
   }
 
   /* ------- sidebar internals ------- */
