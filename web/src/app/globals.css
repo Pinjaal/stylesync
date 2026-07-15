@@ -3551,11 +3551,17 @@ textarea {
     padding: 14px 22px;
     border-top: 1px solid var(--line);
   }
-  .rail-foot .btn {
-    flex: 1;
-    height: 46px;
-    font-size: 14px;
+  /* Needs .itemrail to out-specify `.app-scroll .btn { min-width: 220px }` below —
+     equal specificity would lose on source order, and 2x220px overflows the 388px
+     rail (then gets clipped by .itemrail{overflow:hidden}). */
+  .itemrail .rail-foot .btn {
+    flex: 1 1 0;
+    width: auto;
     min-width: 0;
+    height: 46px;
+    padding: 0 12px;
+    font-size: 14px;
+    white-space: nowrap;
   }
 
   .bottomnav {
