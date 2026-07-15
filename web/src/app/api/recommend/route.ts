@@ -17,6 +17,88 @@ interface Candidate {
   similarity: number
 }
 
+interface DailyRow {
+  id: string
+  item_ids: string[]
+  reasoning: string
+  style_tips: string[] | null
+  title?: string | null
+  confidence?: number | null
+}
+interface ItemRow {
+  id: string
+  category: string | null
+  subcategory: string | null
+  colors: string[] | null
+  cleaned_image_key: string | null
+}
+
+type DB = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Re-read the pick already generated for today so the Style home shows the SAME
+ * look all day instead of regenerating (and writing new rows) on every load.
+ * Returns null when there's no pick yet, or its items have since been removed —
+ * either way the caller falls through and generates a fresh one.
+ * RLS scopes `outfits` to the current user, matching the rest of the codebase.
+ */
+async function readDailyLook(supabase: DB, dayStart: string) {
+  const base = supabase
+    .from('outfits')
+    .select('id, item_ids, reasoning, style_tips, title, confidence')
+    .eq('source', 'daily')
+    .gte('created_at', dayStart)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  let row: DailyRow | null = null
+  const withMeta = await base.maybeSingle()
+  if (withMeta.error) {
+    // 0004_outfit_meta not applied — fall back to the columns that always exist.
+    const basic = await supabase
+      .from('outfits')
+      .select('id, item_ids, reasoning, style_tips')
+      .eq('source', 'daily')
+      .gte('created_at', dayStart)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    row = (basic.data as DailyRow | null) ?? null
+  } else {
+    row = (withMeta.data as DailyRow | null) ?? null
+  }
+  if (!row?.item_ids?.length) return null
+
+  const { data: items } = await supabase
+    .from('items')
+    .select('id, category, subcategory, colors, cleaned_image_key')
+    .in('id', row.item_ids)
+    .eq('is_active', true)
+    .returns<ItemRow[]>()
+
+  const byId = new Map((items ?? []).map((i) => [i.id, i]))
+  const ordered = row.item_ids.map((id) => byId.get(id)).filter((i): i is ItemRow => Boolean(i))
+  if (!ordered.length) return null // items deleted since — regenerate instead
+
+  const urlMap = await getSignedUrls(
+    ordered.map((i) => i.cleaned_image_key).filter((k): k is string => Boolean(k)),
+  )
+  return {
+    id: row.id,
+    title: row.title ?? null,
+    reasoning: row.reasoning,
+    style_tips: row.style_tips ?? [],
+    confidence: row.confidence ?? null,
+    items: ordered.map((c) => ({
+      id: c.id,
+      category: c.category,
+      subcategory: c.subcategory,
+      colors: c.colors,
+      imageUrl: c.cleaned_image_key ? urlMap[c.cleaned_image_key] ?? null : null,
+    })),
+  }
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient()
   const {
@@ -24,18 +106,34 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { occasion?: string; season?: string; weather?: unknown; styleQuery?: string }
+  let body: {
+    occasion?: string
+    season?: string
+    weather?: unknown
+    styleQuery?: string
+    mode?: string
+    dayStart?: string
+  }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
-  const { occasion, season, weather, styleQuery } = body
+  const { occasion, season, weather, styleQuery, mode, dayStart } = body
   if (!occasion || !season) {
     return NextResponse.json({ error: 'occasion and season are required' }, { status: 400 })
   }
+  // The Style home's auto "today's look". Tagged source='daily' so it is excluded
+  // from the streak, and reused for the rest of the day rather than regenerated
+  // on every page load (which used to write 2-3 rows per visit).
+  const isDaily = mode === 'daily'
 
   try {
+    if (isDaily && dayStart) {
+      const todays = await readDailyLook(supabase, dayStart)
+      if (todays) return NextResponse.json({ outfits: [todays] })
+    }
+
     // Pull the user's onboarding style profile so Spark leans on their vibes.
     const { data: profile } = await supabase
       .from('profiles')
@@ -141,28 +239,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Could not compose an outfit. Try again.' }, { status: 502 })
     }
 
-    // 6. Save every shown outfit, capture their IDs (best-effort)
-    let ids: (string | null)[] = displayOutfits.map(() => null)
-    const { data: saved } = await supabase
-      .from('outfits')
-      .insert(
-        displayOutfits.map((o) => ({
-          user_id: user.id,
-          item_ids: o.item_ids,
-          occasion,
-          season,
-          weather: weather ?? null,
-          style_query: styleQuery ?? null,
-          reasoning: o.reasoning,
-          style_tips: o.style_tips.length ? o.style_tips : null,
-        })),
-      )
-      .select('id')
-    if (saved && saved.length === displayOutfits.length) {
-      ids = saved.map((r) => r.id as string)
+    // The daily pick keeps exactly one look, so the day has a single canonical
+    // answer that re-reads return unchanged.
+    const toPersist = isDaily ? displayOutfits.slice(0, 1) : displayOutfits
+
+    // 6. Save the shown outfits, capture their IDs (best-effort).
+    // source: 'ai' = the user asked ("Style me") and counts toward their streak.
+    //         'daily' = the auto pick on the Style home; excluded from the streak
+    //         so merely opening the app never builds one.
+    let ids: (string | null)[] = toPersist.map(() => null)
+    const baseRows = toPersist.map((o) => ({
+      user_id: user.id,
+      item_ids: o.item_ids,
+      occasion,
+      season,
+      weather: weather ?? null,
+      style_query: styleQuery ?? null,
+      reasoning: o.reasoning,
+      style_tips: o.style_tips.length ? o.style_tips : null,
+      source: isDaily ? 'daily' : 'ai',
+    }))
+    const rows = baseRows.map((r, i) => ({
+      ...r,
+      title: toPersist[i].title,
+      confidence: toPersist[i].confidence,
+    }))
+
+    let saved = await supabase.from('outfits').insert(rows).select('id')
+    if (saved.error && /title|confidence|column|schema cache/i.test(saved.error.message)) {
+      // 0004_outfit_meta not applied — persist without the editorial meta.
+      saved = await supabase.from('outfits').insert(baseRows).select('id')
+    }
+    if (saved.data && saved.data.length === toPersist.length) {
+      ids = saved.data.map((r) => r.id as string)
     }
 
-    const outfits = displayOutfits.map((o, i) => ({
+    const outfits = toPersist.map((o, i) => ({
       id: ids[i],
       title: o.title,
       reasoning: o.reasoning,

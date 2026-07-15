@@ -57,11 +57,22 @@ export function StyleClient({
   const [todayOccasion, setTodayOccasion] = useState('everyday')
 
   const fetchLooks = useCallback(
-    async (occasion: string, styleQuery?: string): Promise<Look[]> => {
+    async (occasion: string, styleQuery?: string, daily = false): Promise<Look[]> => {
+      // daily: ask for today's canonical pick. The server reuses the one already
+      // generated today (keyed off the user's LOCAL midnight, so the look turns
+      // over at their midnight rather than UTC's) instead of composing a new one
+      // — and tags it source='daily' so it never inflates the styling streak.
+      const dayStart = new Date()
+      dayStart.setHours(0, 0, 0, 0)
       const res = await fetch('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ occasion, season: seasonNow(), styleQuery }),
+        body: JSON.stringify({
+          occasion,
+          season: seasonNow(),
+          styleQuery,
+          ...(daily ? { mode: 'daily', dayStart: dayStart.toISOString() } : {}),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
@@ -85,7 +96,7 @@ export function StyleClient({
     setTodayOccasion(occ)
     ;(async () => {
       try {
-        const got = await fetchLooks(occ)
+        const got = await fetchLooks(occ, undefined, true)
         if (cancelled) return
         setToday(got[0] ?? null)
         setLooks(got)

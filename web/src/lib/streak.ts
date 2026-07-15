@@ -1,5 +1,7 @@
-// Styling streak + level, derived from the user's real activity dates
-// (every time they generate a look, an outfit row is created).
+// Styling streak + level, derived from the dates the user ACTIVELY styled.
+// Callers must pass only user-initiated looks (outfits.source <> 'daily') — the
+// once-a-day auto pick on the Style home is excluded, so merely opening the app
+// never builds a streak. See api/recommend.
 
 export interface StreakInfo {
   streak: number

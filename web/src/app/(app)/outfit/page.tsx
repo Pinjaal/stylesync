@@ -18,9 +18,13 @@ export default async function OutfitPage() {
       .select('display_name')
       .eq('id', user.id)
       .maybeSingle(),
+    // Streak counts days the user ACTIVELY styled. source='daily' is the auto
+    // pick on this page, so excluding it means merely opening the app no longer
+    // builds a streak (it used to, because every visit wrote outfit rows).
     supabase
       .from('outfits')
       .select('created_at')
+      .neq('source', 'daily')
       .order('created_at', { ascending: false })
       .limit(400)
       .returns<{ created_at: string }[]>(),
