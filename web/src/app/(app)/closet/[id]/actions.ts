@@ -13,13 +13,9 @@ export async function markWorn(itemId: string) {
   revalidatePath(`/closet/${itemId}`)
 }
 
-// Vocabularies mirror the tagger's prompt (lib/gemini.ts SYSTEM) so hand edits and
-// AI tags stay in the same language. They are guidance there and free text in the DB,
-// so real rows may hold off-vocabulary values (e.g. the OpenRouter fallback writes
-// category 'other') — the UI must offer the current value even when it isn't listed.
-export const CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'footwear', 'accessory', 'ethnic']
-export const OCCASIONS = ['casual', 'work', 'party', 'formal', 'gym', 'travel', 'ethnic', 'date', 'beach', 'loungewear']
-export const SEASONS = ['summer', 'winter', 'monsoon', 'all-season']
+// NOTE: the CATEGORIES/OCCASIONS/SEASONS vocabularies deliberately live in
+// ./vocab.ts, NOT here — a 'use server' file may only export async functions, and
+// a plain array exported from one reaches client importers as `undefined`.
 
 export interface ItemPatch {
   name?: string | null

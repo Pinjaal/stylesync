@@ -7,13 +7,10 @@ import { X, Loader2, Check } from 'lucide-react'
 import { Glyph } from '@/components/Glyph'
 import { Spark } from '@/components/Spark'
 import type { ItemDetailView } from '../[id]/data'
-import { updateItem, CATEGORIES, OCCASIONS, SEASONS } from '../[id]/actions'
-
-// Offer the vocabulary plus whatever the row already holds — real data can carry
-// off-vocabulary values (the OpenRouter tagger falls back to category 'other'),
-// and a <select> that omits the current value would silently corrupt it on save.
-const withCurrent = (list: string[], current: string | null | undefined) =>
-  current && !list.includes(current) ? [current, ...list] : list
+import { updateItem } from '../[id]/actions'
+// Vocabularies come from a PLAIN module, not the 'use server' actions file —
+// non-async exports from "use server" arrive as undefined on the client.
+import { CATEGORIES, OCCASIONS, SEASONS, withCurrent } from '../[id]/vocab'
 
 /**
  * Desktop-only detail rail. Renders the same data as /closet/[id] (both go
