@@ -1,11 +1,17 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, Check, Plus, Loader2 } from 'lucide-react'
 import { Glyph } from '@/components/Glyph'
 import { createSegment, type SegmentSummary } from '../segments-actions'
+import { ItemRail } from './ItemRail'
+
+// The rail only exists at the desktop breakpoint (see globals.css >=1024px).
+// Selection is gated on the SAME query so a phone tap always navigates to the
+// full /closet/[id] page — tiles stay real <Link>s, we only intercept on wide.
+const WIDE = '(min-width: 1024px)'
 
 export interface ClosetItem {
   id: string
@@ -45,6 +51,21 @@ export function ClosetView({
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [selected, setSelected] = useState<string | null>(null)
+  // false during SSR/hydration, so the first paint is always the mobile
+  // behaviour (plain links) and can never mis-render a rail on a phone.
+  const [isWide, setIsWide] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia(WIDE)
+    const sync = () => {
+      setIsWide(mq.matches)
+      if (!mq.matches) setSelected(null) // dropping to phone width closes the rail
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
 
   const buckets = useMemo(() => {
     const counts = new Map<string, number>()
@@ -67,7 +88,8 @@ export function ClosetView({
   }, [items, segments, active, query])
 
   return (
-    <>
+    <div className="closet-shell">
+      <div className="closet-main">
       <div className="appbar">
         <div>
           <div className="eyebrow" style={{ marginBottom: 4 }}>
@@ -160,7 +182,14 @@ export function ClosetView({
             <Link
               key={it.id}
               href={`/closet/${it.id}`}
-              className="mtile"
+              className={`mtile${selected === it.id ? ' on' : ''}`}
+              onClick={(e) => {
+                // Desktop: fill the rail instead of navigating. Left-click only —
+                // cmd/ctrl/middle-click still open the real page in a new tab.
+                if (!isWide || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+                e.preventDefault()
+                setSelected(it.id)
+              }}
               style={{ height: it.imageUrl ? undefined : tileHeight(it.id), background: it.imageUrl ? undefined : `${it.color}33` }}
             >
               {it.imageUrl ? (
@@ -193,7 +222,10 @@ export function ClosetView({
           }}
         />
       )}
-    </>
+      </div>
+
+      {isWide && selected && <ItemRail id={selected} onClose={() => setSelected(null)} />}
+    </div>
   )
 }
 

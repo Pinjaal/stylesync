@@ -3362,14 +3362,154 @@ textarea {
     top: 18px;
   }
 
+  /* Closet = grid on the left, detail rail on the right (the mockup's layout).
+     .closet-shell/.closet-main are plain blocks below 1024px, so the phone is
+     untouched and tiles still navigate to /closet/[id]. */
+  .closet-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 388px;
+    gap: 22px;
+    align-items: start;
+  }
+  .closet-main {
+    min-width: 0;
+  }
+
   /* Kept as column-count (not the mockup's grid): grid would break
      .mtile{break-inside:avoid} and fight ClosetView's ragged tile heights. */
   .app-scroll.page-closet .masonry {
-    column-count: 4;
+    column-count: 3;
     column-gap: 14px;
   }
   .app-scroll.page-closet .mtile {
     margin-bottom: 14px;
+  }
+  .mtile.on {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .itemrail {
+    position: sticky;
+    top: 8px;
+    align-self: start;
+    max-height: calc(100dvh - 24px);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+  }
+  .rail-x {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-card);
+  }
+  .rail-load {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 220px;
+    color: var(--ink-mute);
+  }
+  .rail-hero {
+    height: 288px;
+    flex: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .rail-hero img {
+    max-width: 78%;
+    max-height: 84%;
+    object-fit: contain;
+  }
+  .rail-hero .glyphwrap svg {
+    width: 150px;
+    height: 150px;
+    opacity: 0.6;
+  }
+  .rail-tag {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 13px;
+    border-radius: 8px;
+    text-transform: capitalize;
+  }
+  .rail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 22px;
+  }
+  .rail-pairs {
+    display: flex;
+    gap: 9px;
+    margin-bottom: 4px;
+  }
+  .rail-pair {
+    flex: 1;
+    min-width: 0;
+    text-decoration: none;
+  }
+  .rail-pair .ph {
+    aspect-ratio: 3 / 4;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #e4ddce;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rail-pair .ph img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .rail-pair .ph svg {
+    width: 58%;
+    height: 58%;
+    opacity: 0.55;
+  }
+  .rail-pair .nm {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-top: 6px;
+    text-transform: capitalize;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rail-foot {
+    flex: none;
+    display: flex;
+    gap: 8px;
+    padding: 14px 22px;
+    border-top: 1px solid var(--line);
+  }
+  .rail-foot .btn {
+    flex: 1;
+    height: 46px;
+    font-size: 14px;
+    min-width: 0;
   }
 
   .bottomnav {

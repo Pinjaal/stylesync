@@ -1,48 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Heart, Check } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
-import { getSignedUrls } from '@/lib/storage'
-import { Glyph, bucketFor } from '@/components/Glyph'
-import { colorHex } from '@/lib/colors'
+import { Glyph } from '@/components/Glyph'
 import { ItemActions } from './_components/ItemActions'
+import { getItemDetail } from './data'
 
 export const dynamic = 'force-dynamic'
-
-interface ItemDetail {
-  id: string
-  cleaned_image_key: string | null
-  category: string | null
-  subcategory: string | null
-  colors: string[] | null
-  pattern: string | null
-  fabric: string | null
-  fit: string | null
-  occasions: string[] | null
-  seasons: string[] | null
-  description: string | null
-  times_worn: number | null
-  last_worn_at: string | null
-}
-
-interface PairRow {
-  id: string
-  cleaned_image_key: string | null
-  category: string | null
-  subcategory: string | null
-  colors: string[] | null
-}
-
-// Which buckets pair nicely with a given one, best first.
-const PAIR_MAP: Record<string, string[]> = {
-  Tops: ['Bottoms', 'Outerwear', 'Shoes'],
-  Bottoms: ['Tops', 'Shoes', 'Outerwear'],
-  Dresses: ['Outerwear', 'Shoes', 'Bags'],
-  Outerwear: ['Tops', 'Bottoms', 'Shoes'],
-  Shoes: ['Bottoms', 'Tops', 'Dresses'],
-  Bags: ['Dresses', 'Tops', 'Shoes'],
-  Other: ['Tops', 'Bottoms', 'Shoes'],
-}
 
 export default async function ItemDetailPage(props: {
   params: Promise<{ id: string }>
@@ -50,67 +13,11 @@ export default async function ItemDetailPage(props: {
 }) {
   const { id } = await props.params
   const { added } = await props.searchParams
-  const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('items')
-    .select(
-      'id, cleaned_image_key, category, subcategory, colors, pattern, fabric, fit, occasions, seasons, description, times_worn, last_worn_at',
-    )
-    .eq('id', id)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (error) throw new Error(error.message)
-  if (!data) notFound()
-  const item = data as ItemDetail
-
-  // Pairings + "in N looks" — both from the user's real data.
-  const [{ data: others }, looksRes] = await Promise.all([
-    supabase
-      .from('items')
-      .select('id, cleaned_image_key, category, subcategory, colors')
-      .eq('is_active', true)
-      .neq('id', id)
-      .order('times_worn', { ascending: false })
-      .limit(24)
-      .returns<PairRow[]>(),
-    supabase.from('outfits').select('id', { count: 'exact', head: true }).contains('item_ids', [id]),
-  ])
-
-  const wantBuckets = PAIR_MAP[bucketFor(item.category, item.subcategory)] ?? []
-  const pairs = (others ?? [])
-    .map((p) => ({ ...p, bucket: bucketFor(p.category, p.subcategory) }))
-    .sort((a, b) => {
-      const ai = wantBuckets.indexOf(a.bucket)
-      const bi = wantBuckets.indexOf(b.bucket)
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-    })
-    .slice(0, 6)
-
-  const allKeys = [item.cleaned_image_key, ...pairs.map((p) => p.cleaned_image_key)].filter(
-    (k): k is string => Boolean(k),
-  )
-  const urlMap = await getSignedUrls(allKeys)
-  const heroUrl = item.cleaned_image_key ? urlMap[item.cleaned_image_key] ?? null : null
-
-  const title = item.subcategory || item.category || 'Item'
-  const eyebrow = [item.category, item.subcategory].filter(Boolean).join(' · ') || 'Wardrobe'
-  const heroColor = colorHex(item.colors)
-
-  const lastWorn = (() => {
-    if (!item.last_worn_at) return '—'
-    const days = Math.floor((Date.now() - new Date(item.last_worn_at).getTime()) / 86400000)
-    if (days <= 0) return 'today'
-    return `${days}d`
-  })()
-
-  const attrs: { label: string; dot?: string }[] = []
-  if (item.colors?.[0]) attrs.push({ label: item.colors[0], dot: heroColor })
-  if (item.fabric) attrs.push({ label: item.fabric })
-  if (item.fit) attrs.push({ label: `${item.fit} fit` })
-  for (const s of item.seasons ?? []) attrs.push({ label: s })
-  if (item.occasions?.length) attrs.push({ label: item.occasions.join(' · ') })
+  // Same query path the desktop rail uses (api/item/[id]).
+  const detail = await getItemDetail(id)
+  if (!detail) notFound()
+  const { item, title, eyebrow, heroUrl, heroColor, lastWorn, inLooks, attrs, pairs } = detail
 
   return (
     <>
@@ -135,9 +42,7 @@ export default async function ItemDetailPage(props: {
       {added && (
         <div className="add-banner">
           <Check size={18} strokeWidth={2.4} />
-          <span>
-            Background removed · tagged by AI — tweak anything that&apos;s off below.
-          </span>
+          <span>Background removed · tagged by AI — tweak anything that&apos;s off below.</span>
         </div>
       )}
 
@@ -170,7 +75,7 @@ export default async function ItemDetailPage(props: {
             <small>last worn</small>
           </div>
           <div className="idstat">
-            <b>{looksRes.count ?? 0}</b>
+            <b>{inLooks}</b>
             <small>in looks</small>
           </div>
         </div>
@@ -179,22 +84,19 @@ export default async function ItemDetailPage(props: {
           <>
             <div className="sec-t">Styles beautifully with</div>
             <div className="pairs">
-              {pairs.map((p) => {
-                const url = p.cleaned_image_key ? urlMap[p.cleaned_image_key] ?? null : null
-                return (
-                  <Link key={p.id} href={`/closet/${p.id}`} className="pair">
-                    <div className="ph" style={{ background: url ? undefined : `${colorHex(p.colors)}44` }}>
-                      {url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={url} alt={p.subcategory || p.category || 'item'} />
-                      ) : (
-                        <Glyph category={p.category} subcategory={p.subcategory} color={colorHex(p.colors)} />
-                      )}
-                    </div>
-                    <div className="nm">{p.subcategory || p.category || 'Item'}</div>
-                  </Link>
-                )
-              })}
+              {pairs.map((p) => (
+                <Link key={p.id} href={`/closet/${p.id}`} className="pair">
+                  <div className="ph" style={{ background: p.imageUrl ? undefined : `${p.color}44` }}>
+                    {p.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.imageUrl} alt={p.label} />
+                    ) : (
+                      <Glyph category={null} subcategory={p.label} color={p.color} />
+                    )}
+                  </div>
+                  <div className="nm">{p.label}</div>
+                </Link>
+              ))}
             </div>
           </>
         )}
