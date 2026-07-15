@@ -6,6 +6,7 @@ import { ImagePlus, Loader2, ShoppingBag } from 'lucide-react'
 import { Glyph } from '@/components/Glyph'
 import { colorHex } from '@/lib/colors'
 import { createClient } from '@/lib/supabase/client'
+import { imageFileError, safeImageExt } from '@/lib/imageValidation'
 import { createPost } from '../actions'
 import type { ShareLook } from '../data'
 
@@ -34,6 +35,12 @@ export function ShareForm({
   const [, start] = useTransition()
 
   function pickPhoto(f: File) {
+    const badFile = imageFileError(f)
+    if (badFile) {
+      setError(badFile)
+      return
+    }
+    setError(null)
     setPhoto(f)
     setPreview(URL.createObjectURL(f))
     setOutfitId(null) // photo and look are mutually exclusive
@@ -50,7 +57,7 @@ export function ShareForm({
       let imageKey: string | undefined
       if (photo) {
         const supabase = createClient()
-        const ext = (photo.name.split('.').pop() || 'jpg').toLowerCase()
+        const ext = safeImageExt(photo.name)
         imageKey = `${uid}/posts/${crypto.randomUUID()}.${ext}`
         const { error: upErr } = await supabase.storage
           .from(BUCKET)

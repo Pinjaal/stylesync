@@ -1,21 +1,34 @@
 import { NextResponse } from 'next/server'
 import { composeOutfits } from '@/lib/gemini'
 import { DEMO_ITEMS } from '@/lib/demo'
+import { clientKey, rateLimit } from '@/lib/rateLimit'
 
 // Public (no auth) — styles the DEMO closet for guests via the LLM.
 // composeOutfits routes through OpenRouter/Gemini; if that fails the CLIENT
 // falls back to the built-in preset looks, so the demo never breaks.
 export const maxDuration = 60
 
+const MAX_STYLE_QUERY = 300
+
 export async function POST(req: Request) {
+  // This endpoint is unauthenticated and calls a paid LLM, so it is the prime
+  // cost-abuse target. Throttle hard by client IP.
+  const rl = rateLimit(`guest-recommend:${clientKey(req)}`, 10, 60_000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+    )
+  }
+
   let body: { occasion?: string; styleQuery?: string }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
-  const occasion = (body.occasion || 'casual').toLowerCase()
-  const styleQuery = body.styleQuery?.trim() || undefined
+  const occasion = (body.occasion || 'casual').toLowerCase().slice(0, 50)
+  const styleQuery = body.styleQuery?.trim().slice(0, MAX_STYLE_QUERY) || undefined
 
   const candidates = DEMO_ITEMS.map((it) => ({
     id: it.id,
@@ -58,8 +71,7 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ outfits })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Styling failed'
-    console.error('guest-recommend error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('guest-recommend error:', err)
+    return NextResponse.json({ error: 'Styling failed' }, { status: 500 })
   }
 }

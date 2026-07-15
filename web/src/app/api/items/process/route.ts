@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { downloadFromStorage, uploadToStorage } from '@/lib/storage'
 import { processImage } from '@/lib/processor'
 import { extractAttributes } from '@/lib/gemini'
+import { MAX_IMAGE_BYTES, sniffedImageType } from '@/lib/imageValidation'
 
 // Vercel hobby tier caps server functions at 60s. HF Space cold start
 // + Gemini together can take 30-50s, so we ask for the full window.
@@ -45,6 +46,16 @@ export async function POST(req: Request) {
     // 1. Download the raw image from storage (server-side, service role)
     const rawImage = await downloadFromStorage(rawKey)
 
+    // Validate what we actually got before spending compute on it: enforce a
+    // size ceiling and confirm the bytes are a real image (magic-byte sniff),
+    // so a spoofed content-type or oversized blob can't drive processing.
+    if (rawImage.length > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: 'Image is too large' }, { status: 413 })
+    }
+    if (!sniffedImageType(rawImage)) {
+      return NextResponse.json({ error: 'Unsupported or invalid image file' }, { status: 415 })
+    }
+
     // 2. Send to HF Space — get cleaned PNG + 512-dim embedding back
     const { cleanedImage, embedding } = await processImage(rawImage)
 
@@ -65,16 +76,13 @@ export async function POST(req: Request) {
       embedding,
     })
     if (insertError) {
-      return NextResponse.json(
-        { error: `DB insert failed: ${insertError.message}` },
-        { status: 500 },
-      )
+      console.error('items/process DB insert error:', insertError)
+      return NextResponse.json({ error: 'Could not save item' }, { status: 500 })
     }
 
     return NextResponse.json({ itemId, ok: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('items/process error:', err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Could not process image' }, { status: 500 })
   }
 }

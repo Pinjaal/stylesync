@@ -1,7 +1,23 @@
 import { GoogleGenerativeAI, SchemaType, Schema } from '@google/generative-ai'
 import OpenAI from 'openai'
+import { withTimeout } from './timeout'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+// Hard ceiling for a single LLM round-trip so a stalled provider can't hold the
+// serverless function open until the platform force-kills it (routes set
+// maxDuration=60).
+const LLM_TIMEOUT_MS = 45_000
+
+// Lazily construct the Gemini client so a missing key surfaces as a clear error
+// at call time rather than an opaque failure at module import.
+let _genAI: GoogleGenerativeAI | null = null
+function genAI(): GoogleGenerativeAI {
+  if (!_genAI) {
+    const key = process.env.GEMINI_API_KEY
+    if (!key) throw new Error('GEMINI_API_KEY is not set')
+    _genAI = new GoogleGenerativeAI(key)
+  }
+  return _genAI
+}
 
 // Gemini model slug. `gemini-flash-latest` is an alias Google keeps pointed at
 // the current stable Flash model — pinned slugs like `gemini-2.5-flash` get cut
@@ -100,7 +116,7 @@ export async function extractAttributes(pngBuffer: Buffer): Promise<ItemAttribut
 }
 
 async function extractViaGemini(pngBuffer: Buffer): Promise<ItemAttributes> {
-  const model = genAI.getGenerativeModel({
+  const model = genAI().getGenerativeModel({
     model: GEMINI_MODEL,
     generationConfig: {
       responseMimeType: 'application/json',
@@ -109,11 +125,29 @@ async function extractViaGemini(pngBuffer: Buffer): Promise<ItemAttributes> {
     },
     systemInstruction: SYSTEM,
   })
-  const result = await model.generateContent([
-    { inlineData: { mimeType: 'image/png', data: pngBuffer.toString('base64') } },
-    { text: 'Extract the attributes of this clothing item.' },
-  ])
-  return JSON.parse(result.response.text())
+  const result = await withTimeout(
+    model.generateContent([
+      { inlineData: { mimeType: 'image/png', data: pngBuffer.toString('base64') } },
+      { text: 'Extract the attributes of this clothing item.' },
+    ]),
+    LLM_TIMEOUT_MS,
+    'Gemini tagging',
+  )
+  return parseJsonOrThrow<ItemAttributes>(result.response.text(), 'tagging')
+}
+
+// Structured output is usually well-formed, but never assume — parse
+// defensively so a stray token can't throw an unhandled SyntaxError.
+function parseJsonOrThrow<T>(text: string, label: string): T {
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    try {
+      return JSON.parse(extractJson(text)) as T
+    } catch {
+      throw new Error(`Could not parse ${label} response as JSON`)
+    }
+  }
 }
 
 // Vision tagging via OpenRouter. Needs a multimodal model — defaults to
@@ -128,20 +162,23 @@ async function extractViaOpenRouter(pngBuffer: Buffer): Promise<ItemAttributes> 
 
 Return ONLY a valid JSON object with these keys (omit any you're unsure of): category, subcategory, colors (array of strings), pattern, fabric, fit, sleeve_length, neck_type, occasions (array), seasons (array), features (array), description. No markdown, no prose.`
 
-  const res = await openrouter().chat.completions.create({
-    model,
-    temperature: 0.2,
-    messages: [
-      { role: 'system', content: system },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'Extract the attributes of this clothing item.' },
-          { type: 'image_url', image_url: { url: dataUrl } },
-        ],
-      },
-    ],
-  })
+  const res = await openrouter().chat.completions.create(
+    {
+      model,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Extract the attributes of this clothing item.' },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    },
+    { timeout: LLM_TIMEOUT_MS },
+  )
   const text = res.choices[0]?.message?.content ?? ''
   const p = JSON.parse(extractJson(text)) as Partial<ItemAttributes>
   // Normalise so the shape is always valid regardless of the model.
@@ -257,7 +294,7 @@ async function composeViaGemini(
   candidates: OutfitCandidate[],
   ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
 ): Promise<ComposedOutfit[]> {
-  const model = genAI.getGenerativeModel({
+  const model = genAI().getGenerativeModel({
     model: GEMINI_MODEL,
     generationConfig: {
       responseMimeType: 'application/json',
@@ -266,8 +303,12 @@ async function composeViaGemini(
     },
     systemInstruction: COMPOSE_SYSTEM,
   })
-  const result = await model.generateContent(composePrompt(candidates, ctx))
-  const parsed = JSON.parse(result.response.text()) as { outfits: ComposedOutfit[] }
+  const result = await withTimeout(
+    model.generateContent(composePrompt(candidates, ctx)),
+    LLM_TIMEOUT_MS,
+    'Gemini stylist',
+  )
+  const parsed = parseJsonOrThrow<{ outfits: ComposedOutfit[] }>(result.response.text(), 'stylist')
   return parsed.outfits ?? []
 }
 
@@ -283,14 +324,17 @@ async function composeViaOpenRouter(
 Return ONLY a valid JSON object of exactly this shape — no markdown fences, no prose:
 {"outfits":[{"title":"string","item_ids":["string"],"reasoning":"string","style_tips":["string"],"confidence":0.9}]}`
 
-  const res = await openrouter().chat.completions.create({
-    model,
-    temperature: 0.4,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: composePrompt(candidates, ctx) },
-    ],
-  })
+  const res = await openrouter().chat.completions.create(
+    {
+      model,
+      temperature: 0.4,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: composePrompt(candidates, ctx) },
+      ],
+    },
+    { timeout: LLM_TIMEOUT_MS },
+  )
   const text = res.choices[0]?.message?.content ?? ''
   const parsed = JSON.parse(extractJson(text)) as { outfits: ComposedOutfit[] }
   return parsed.outfits ?? []

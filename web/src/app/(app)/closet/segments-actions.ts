@@ -58,14 +58,18 @@ export async function createSegment(
     if (error.code === '42P01') {
       throw new Error('Segments table missing — run the 0002_segments.sql migration.')
     }
-    throw new Error(error.message)
+    console.error('createSegment error:', error)
+    throw new Error('Could not create segment')
   }
 
   if (itemIds.length) {
     const { error: mErr } = await supabase
       .from('segment_items')
       .insert(itemIds.map((item_id) => ({ segment_id: seg.id, item_id })))
-    if (mErr) throw new Error(mErr.message)
+    if (mErr) {
+      console.error('createSegment membership error:', mErr)
+      throw new Error('Could not create segment')
+    }
   }
 
   revalidatePath('/closet')
@@ -75,6 +79,9 @@ export async function createSegment(
 export async function deleteSegment(segmentId: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('segments').delete().eq('id', segmentId)
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error('deleteSegment error:', error)
+    throw new Error('Could not delete segment')
+  }
   revalidatePath('/closet')
 }

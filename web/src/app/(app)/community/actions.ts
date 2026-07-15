@@ -62,7 +62,10 @@ export async function addComment(postId: string, body: string) {
   const { error } = await supabase
     .from('post_comments')
     .insert({ post_id: postId, user_id: user.id, body: clean.slice(0, 500) })
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error('addComment error:', error)
+    throw new Error('Could not add comment')
+  }
   revalidatePath(`/community/post/${postId}`)
 }
 
@@ -78,6 +81,22 @@ export async function createPost(input: CreatePostInput) {
   const { supabase, user } = await requireUser()
   if (!input.imageKey && !input.outfitId) {
     throw new Error('Add a photo or pick a logged look')
+  }
+
+  // Both references are client-supplied — verify ownership so a post can't point
+  // at another user's private storage object or logged look (signed URLs are
+  // minted server-side with the service role, so an unchecked key would leak).
+  if (input.imageKey && !input.imageKey.startsWith(`${user.id}/`)) {
+    throw new Error('Invalid image')
+  }
+  if (input.outfitId) {
+    const { data: owned } = await supabase
+      .from('outfits')
+      .select('id')
+      .eq('id', input.outfitId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!owned) throw new Error('Invalid look')
   }
 
   const { data: profile } = await supabase
@@ -97,7 +116,8 @@ export async function createPost(input: CreatePostInput) {
   })
   if (error) {
     if (error.code === '42P01') throw new Error('Community tables missing — run 0003_community.sql.')
-    throw new Error(error.message)
+    console.error('createPost error:', error)
+    throw new Error('Could not share your post')
   }
 
   revalidatePath('/community')

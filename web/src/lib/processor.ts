@@ -20,10 +20,12 @@ export async function processImage(
   const response = await fetch(`${url}/process`, {
     method: 'POST',
     headers: {
-      // NOTE: header is x-processor-secret to match your app.py
+      // Header name matches the processor service (processor/app.py).
       'x-processor-secret': secret,
     },
     body: formData,
+    // A cold HF Space can be slow, but never let it hang the whole function.
+    signal: AbortSignal.timeout(50_000),
   })
 
   if (!response.ok) {
@@ -56,6 +58,7 @@ export async function embedText(text: string): Promise<number[]> {
       'x-processor-secret': secret,
     },
     body: JSON.stringify({ text }),
+    signal: AbortSignal.timeout(50_000),
   })
 
   if (!response.ok) {
