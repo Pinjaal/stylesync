@@ -101,6 +101,12 @@ textarea {
 .pad {
   padding: 0 22px;
 }
+/* Desktop sidebar. Declared display:none here so it never renders on phones —
+   an undeclared <aside> would default to display:block. Enabled only in the
+   >=1024px block at the end of this file. */
+.sidenav {
+  display: none;
+}
 
 /* ------- typography helpers ------- */
 .eyebrow,
@@ -3350,5 +3356,220 @@ textarea {
     margin: 0;
     justify-content: center;
     box-shadow: -20px 0 60px -30px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ============================================================
+   DESKTOP SIDEBAR SHELL — applies only at >=1024px.
+   Phones and tablets (<1024px) render exactly as before.
+
+   NOTE: --shell is deliberately NOT redefined here. That token is
+   shared by .sheet / .splash / .onb / .onb-done / .auth-screen, so
+   widening it would blow out the bottom sheet and onboarding too.
+   .shell's max-width is overridden directly instead.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .shell {
+    max-width: 1440px;
+    display: flex;
+  }
+
+  .sidenav {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: 238px;
+    /* align-self defeats the flex default align-items:stretch — a sidebar
+       stretched to <main>'s full height has zero sticky scroll range. */
+    align-self: flex-start;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100dvh; /* dvh: 1024px tablets have collapsing browser chrome */
+    overflow-y: auto;
+    padding: 26px 18px;
+    background: var(--surface);
+    border-right: 1px solid rgba(23, 18, 14, 0.08);
+  }
+
+  /* min-width:0 is load-bearing: without it .chiprow/.masonry blow out the column.
+     Padding is 8/12 because every inner block already carries its own 22px —
+     that sums to the design's 30px top / 34px sides. */
+  .app-scroll {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px 48px;
+  }
+  .app-scroll:not(.page-closet) {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  /* Kept as column-count (not the mockup's grid): grid would break
+     .mtile{break-inside:avoid} and fight ClosetView's ragged tile heights. */
+  .app-scroll.page-closet .masonry {
+    column-count: 4;
+    column-gap: 14px;
+  }
+  .app-scroll.page-closet .mtile {
+    margin-bottom: 14px;
+  }
+
+  .bottomnav {
+    display: none;
+  }
+
+  /* .btn is width:100% on mobile, which becomes a ~1130px slab here. Sheets and
+     overlays are still DOM descendants of <main> (fixed removes from flow, not
+     from the selector tree), so they must be restored explicitly. */
+  .app-scroll .btn {
+    width: auto;
+    min-width: 220px;
+  }
+  .scrim .btn,
+  .add-card .btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .collage {
+    height: 380px;
+  }
+  .collage.sm {
+    height: 280px;
+  }
+
+  /* ------- sidebar internals ------- */
+  .sidenav-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 8px 26px;
+  }
+  .sidenav-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .sidenav-mark svg {
+    width: 15px;
+    height: 15px;
+  }
+  .sidenav-word {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .sidenav-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 11px 14px;
+    border-radius: var(--r-sm);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    text-decoration: none;
+    transition: 0.16s;
+  }
+  .sidenav-item svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+  }
+  .sidenav-item:hover {
+    background: rgba(23, 18, 14, 0.05);
+  }
+  .sidenav-item.on {
+    background: var(--accent);
+    color: var(--surface);
+    font-weight: 600;
+  }
+  .sidenav-item.on:hover {
+    background: var(--accent-deep);
+  }
+  .sidenav-spacer {
+    flex: 1;
+  }
+  .sidenav-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 46px;
+    border: none;
+    border-radius: var(--r-sm);
+    background: var(--ink);
+    color: var(--surface);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14.5px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: 0.16s;
+  }
+  .sidenav-add:hover {
+    background: #000;
+  }
+  .sidenav-add:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .sidenav-add svg {
+    width: 17px;
+    height: 17px;
+  }
+  .sidenav-me {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: var(--r-sm);
+    text-decoration: none;
+    transition: 0.16s;
+  }
+  .sidenav-me:hover {
+    background: rgba(23, 18, 14, 0.05);
+  }
+  .sidenav-av {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-pill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    flex: none;
+  }
+  .sidenav-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .sidenav-me .nm {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .sidenav-me .sub {
+    font-size: 11.5px;
+    color: var(--ink-mute);
+  }
+  /* names and Style-DNA titles are user data — never let them blow out 238px */
+  .sidenav-me .nm,
+  .sidenav-me .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

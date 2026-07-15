@@ -10,7 +10,30 @@ import { uploadItems } from '@/lib/uploadItems'
 
 const STAGES = ['Removing the background…', 'Tagging with AI…', 'Saving to your closet…']
 
-export function BottomNav({ isGuest = false }: { isGuest?: boolean }) {
+export interface NavMe {
+  name: string
+  initial: string
+  bg: string
+  fg: string
+  subtitle: string
+}
+
+/**
+ * The app's navigation shell. Renders the desktop sidebar, the page slot and the
+ * mobile bottom bar from ONE component so they share a single upload flow — the
+ * sidebar's "Add a piece" and the mobile FAB are literally the same handler.
+ * Which nav is visible is decided purely by CSS (see the >=1024px block in
+ * globals.css); below 1024px the sidebar is display:none and nothing changes.
+ */
+export function AppNav({
+  isGuest = false,
+  me = null,
+  children,
+}: {
+  isGuest?: boolean
+  me?: NavMe | null
+  children: React.ReactNode
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -25,6 +48,11 @@ export function BottomNav({ isGuest = false }: { isGuest?: boolean }) {
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/')
+
+  // Closet is the only route that wants the full-width column (4-col masonry).
+  const pageClass = isActive('/closet') ? ' page-closet' : ''
+
+  const addPiece = () => (isGuest ? setPrompt(true) : inputRef.current?.click())
 
   async function handleFiles(files: File[]) {
     setBusy(true)
@@ -47,6 +75,62 @@ export function BottomNav({ isGuest = false }: { isGuest?: boolean }) {
 
   return (
     <>
+      <aside className="sidenav">
+        <div className="sidenav-brand">
+          <span className="sidenav-mark">
+            <Spark />
+          </span>
+          <span className="sidenav-word">StyleSync</span>
+        </div>
+
+        <Link href="/closet" className={`sidenav-item${isActive('/closet') ? ' on' : ''}`}>
+          <Home strokeWidth={1.9} />
+          Closet
+        </Link>
+        <Link href="/outfit" className={`sidenav-item${isActive('/outfit') ? ' on' : ''}`}>
+          <Spark filled={false} />
+          Style
+        </Link>
+        <Link href="/community" className={`sidenav-item${isActive('/community') ? ' on' : ''}`}>
+          <Users strokeWidth={1.9} />
+          Community
+        </Link>
+        <Link href="/profile" className={`sidenav-item${isActive('/profile') ? ' on' : ''}`}>
+          <User strokeWidth={1.9} />
+          You
+        </Link>
+
+        <div className="sidenav-spacer" />
+
+        <button className="sidenav-add" onClick={addPiece} disabled={busy}>
+          <Plus strokeWidth={2.4} /> Add a piece
+        </button>
+
+        {me ? (
+          <Link href="/profile" className="sidenav-me">
+            <span className="sidenav-av" style={{ background: me.bg, color: me.fg }}>
+              {me.initial}
+            </span>
+            <span className="sidenav-who">
+              <span className="nm">{me.name}</span>
+              <span className="sub">{me.subtitle}</span>
+            </span>
+          </Link>
+        ) : (
+          <Link href="/login" className="sidenav-me">
+            <span className="sidenav-av" style={{ background: 'var(--lav)', color: '#4a3b6b' }}>
+              ?
+            </span>
+            <span className="sidenav-who">
+              <span className="nm">Guest</span>
+              <span className="sub">Log in to save your closet</span>
+            </span>
+          </Link>
+        )}
+      </aside>
+
+      <main className={`app-scroll${pageClass}`}>{children}</main>
+
       <nav className="bottomnav">
         <Link href="/closet" className={`navb${isActive('/closet') ? ' on' : ''}`}>
           <Home strokeWidth={1.9} />
@@ -59,7 +143,7 @@ export function BottomNav({ isGuest = false }: { isGuest?: boolean }) {
 
         <button
           className="navfab"
-          onClick={() => (isGuest ? setPrompt(true) : inputRef.current?.click())}
+          onClick={addPiece}
           disabled={busy}
           aria-label="Add a piece"
         >
