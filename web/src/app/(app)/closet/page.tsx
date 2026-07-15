@@ -3,6 +3,7 @@ import { getSignedUrls } from '@/lib/storage'
 import { bucketFor } from '@/components/Glyph'
 import { colorHex } from '@/lib/colors'
 import { loadSegments } from './segments-actions'
+import { isMissingNameColumn } from './[id]/data'
 import { ClosetView, type ClosetItem } from './_components/ClosetView'
 import { GuestCloset } from '../_components/guest/GuestCloset'
 
@@ -11,6 +12,7 @@ export const dynamic = 'force-dynamic'
 
 interface Row {
   id: string
+  name: string | null
   cleaned_image_key: string | null
   category: string | null
   subcategory: string | null
@@ -26,16 +28,24 @@ export default async function ClosetPage() {
   } = await supabase.auth.getUser()
   if (!user) return <GuestCloset />
 
-  const [itemsRes, outfitsRes, segments] = await Promise.all([
+  const GRID_COLS = 'id, name, cleaned_image_key, category, subcategory, colors, times_worn, last_worn_at'
+  const grid = (cols: string) =>
     supabase
       .from('items')
-      .select('id, cleaned_image_key, category, subcategory, colors, times_worn, last_worn_at')
+      .select(cols)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
-      .returns<Row[]>(),
+      .returns<Row[]>()
+
+  let [itemsRes, outfitsRes, segments] = await Promise.all([
+    grid(GRID_COLS),
     supabase.from('outfits').select('id', { count: 'exact', head: true }),
     loadSegments(),
   ])
+  // 0005_item_name not applied yet — fall back so the closet still renders.
+  if (isMissingNameColumn(itemsRes.error)) {
+    itemsRes = await grid(GRID_COLS.replace('id, name,', 'id,'))
+  }
 
   const rows = itemsRes.data ?? []
   const keys = rows
@@ -45,7 +55,9 @@ export default async function ClosetPage() {
 
   const items: ClosetItem[] = rows.map((r) => ({
     id: r.id,
-    label: r.subcategory || r.category || 'Item',
+    // user-typed name wins over the AI tags
+    label: r.name || r.subcategory || r.category || 'Item',
+    isNamed: Boolean(r.name),
     category: r.category,
     subcategory: r.subcategory,
     bucket: bucketFor(r.category, r.subcategory),

@@ -9,6 +9,7 @@ import { colorHex } from '@/lib/colors'
 
 export interface ItemDetail {
   id: string
+  name: string | null
   cleaned_image_key: string | null
   category: string | null
   subcategory: string | null
@@ -41,6 +42,8 @@ export interface PairView {
 export interface ItemDetailView {
   item: ItemDetail
   title: string
+  /** true when the title came from a user-typed name — callers must not capitalise it. */
+  isNamed: boolean
   eyebrow: string
   heroUrl: string | null
   heroColor: string
@@ -62,21 +65,33 @@ const PAIR_MAP: Record<string, string[]> = {
 }
 
 export const ITEM_COLS =
-  'id, cleaned_image_key, category, subcategory, colors, pattern, fabric, fit, occasions, seasons, description, times_worn, last_worn_at'
+  'id, name, cleaned_image_key, category, subcategory, colors, pattern, fabric, fit, occasions, seasons, description, times_worn, last_worn_at'
+
+/** Same list minus `name`, for when 0005_item_name hasn't been applied yet. */
+export const ITEM_COLS_NO_NAME = ITEM_COLS.replace('id, name,', 'id,')
+
+/** Postgres 42703 for the not-yet-added `name` column. */
+export function isMissingNameColumn(err: { message?: string } | null): boolean {
+  return Boolean(err?.message && /column\s+\S*\bname\b.*does not exist/i.test(err.message))
+}
 
 /** Returns null when the item doesn't exist or isn't the caller's (RLS). */
 export async function getItemDetail(id: string): Promise<ItemDetailView | null> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('items')
-    .select(ITEM_COLS)
-    .eq('id', id)
-    .eq('is_active', true)
-    .maybeSingle()
-  if (error) throw new Error(error.message)
-  if (!data) return null
-  const item = data as ItemDetail
+  let res = await supabase.from('items').select(ITEM_COLS).eq('id', id).eq('is_active', true).maybeSingle()
+  if (isMissingNameColumn(res.error)) {
+    // 0005_item_name not applied — degrade to the AI tags rather than break.
+    res = await supabase
+      .from('items')
+      .select(ITEM_COLS_NO_NAME)
+      .eq('id', id)
+      .eq('is_active', true)
+      .maybeSingle()
+  }
+  if (res.error) throw new Error(res.error.message)
+  if (!res.data) return null
+  const item = { name: null, ...(res.data as object) } as ItemDetail
 
   // Pairings + "in N looks" — both from the user's real data.
   const [{ data: others }, looksRes] = await Promise.all([
@@ -124,7 +139,9 @@ export async function getItemDetail(id: string): Promise<ItemDetailView | null> 
 
   return {
     item,
-    title: item.subcategory || item.category || 'Item',
+    // name is user-typed and wins; the AI tags remain the fallback.
+    title: item.name || item.subcategory || item.category || 'Item',
+    isNamed: Boolean(item.name),
     eyebrow: [item.category, item.subcategory].filter(Boolean).join(' · ') || 'Wardrobe',
     heroUrl: item.cleaned_image_key ? urlMap[item.cleaned_image_key] ?? null : null,
     heroColor,

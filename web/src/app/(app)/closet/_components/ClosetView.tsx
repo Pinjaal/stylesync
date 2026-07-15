@@ -16,6 +16,8 @@ const WIDE = '(min-width: 1024px)'
 export interface ClosetItem {
   id: string
   label: string
+  /** label came from a user-typed name — don't force-capitalise it. */
+  isNamed?: boolean
   category: string | null
   subcategory: string | null
   bucket: string
@@ -203,7 +205,10 @@ export function ClosetView({
               {it.timesWorn > 0 && <div className="mbadge">{it.timesWorn}×</div>}
               <div className="mlabel">
                 <span className="dot" style={{ background: it.color }} />
-                <span className="nm">{it.label}</span>
+                {/* .nm capitalises machine tags; a user-typed name keeps its own casing */}
+                <span className="nm" style={it.isNamed ? { textTransform: 'none' } : undefined}>
+                  {it.label}
+                </span>
               </div>
             </Link>
           ))}
