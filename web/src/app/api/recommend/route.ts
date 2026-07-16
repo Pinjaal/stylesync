@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { embedText } from '@/lib/processor'
 import { composeOutfits } from '@/lib/gemini'
 import { getSignedUrls } from '@/lib/storage'
+import { buildTasteContext } from '@/lib/taste'
 
 // Embedding (possibly a cold HF Space) + Gemini can be slow; take the full window.
 export const maxDuration = 60
@@ -134,13 +135,21 @@ export async function POST(req: Request) {
       if (todays) return NextResponse.json({ outfits: [todays] })
     }
 
-    // Pull the user's onboarding style profile so Spark leans on their vibes.
+    // The onboarding profile. NOTE: until now `vibes` only ever reached the CLIP
+    // query text below — i.e. the vector search whose results the tag top-up
+    // largely overrides — so the stylist had never actually seen a user's Style
+    // DNA despite the onboarding flow promising exactly that. It now also goes
+    // into the prompt via buildTasteContext().
     const { data: profile } = await supabase
       .from('profiles')
       .select('style_preferences')
       .eq('id', user.id)
       .maybeSingle()
-    const vibes = (profile?.style_preferences as { vibes?: string[] } | null)?.vibes ?? []
+    const prefs = (profile?.style_preferences ?? {}) as {
+      vibes?: string[]
+      styleDna?: { title?: string }
+    }
+    const vibes = prefs.vibes ?? []
     const vibeText = vibes.length ? `${vibes.join(', ')} style, ` : ''
 
     // 1. Turn the request into a CLIP vector
@@ -223,8 +232,29 @@ export async function POST(req: Request) {
       if (ids.length && ids.length < cands.length) avoidIds = ids
     }
 
+    // What we know about this person: their Style DNA, the looks they kept, and
+    // (scoped to this occasion) the pairings they passed on. Best-effort — taste
+    // is a bonus signal, never a reason to fail a recommendation.
+    let taste: string | undefined
+    try {
+      taste = await buildTasteContext(supabase, {
+        occasion,
+        vibes,
+        dnaTitle: prefs.styleDna?.title ?? null,
+      })
+    } catch (err) {
+      console.error('taste context failed (continuing without):', err)
+    }
+
     // 3. Let Gemini compose outfits from those candidates
-    const composed = await composeOutfits(cands, { occasion, season, weather, styleQuery, avoidIds })
+    const composed = await composeOutfits(cands, {
+      occasion,
+      season,
+      weather,
+      styleQuery,
+      avoidIds,
+      taste,
+    })
 
     // 4. Sign all images once
     const byId = new Map(cands.map((c) => [c.id, c]))

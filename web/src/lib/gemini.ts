@@ -207,6 +207,8 @@ export interface ComposeCtx {
   styleQuery?: string
   /** Items featured in recent daily picks — nudge the stylist somewhere new. */
   avoidIds?: string[]
+  /** What we know about this person's taste — see lib/taste.ts. */
+  taste?: string
 }
 
 function composePrompt(
@@ -216,7 +218,7 @@ function composePrompt(
   return `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(
     ctx.weather ?? {},
   )}, style=${ctx.styleQuery || 'no preference'}
-
+${ctx.taste ? `\n${ctx.taste}\n` : ''}
 Candidate items from their wardrobe:
 ${JSON.stringify(
   candidates.map((c) => ({
