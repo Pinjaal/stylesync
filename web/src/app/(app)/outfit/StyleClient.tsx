@@ -66,6 +66,11 @@ export function StyleClient({
   const [dateStr, setDateStr] = useState('')
   const [todayOccasion, setTodayOccasion] = useState('everyday')
 
+  // Pairings swiped away in THIS session. A ref, not state: it must not retrigger
+  // a render, and it dies with the page — nothing here is persisted or learned
+  // from, it only stops the very next shuffle handing back what you just rejected.
+  const rejected = useRef<string[][]>([])
+
   const fetchLooks = useCallback(
     async (occasion: string, styleQuery?: string, daily = false): Promise<Look[]> => {
       // daily: ask for today's canonical pick. The server reuses the one already
@@ -81,7 +86,12 @@ export function StyleClient({
           occasion,
           season: seasonNow(),
           styleQuery,
-          ...(daily ? { mode: 'daily', dayStart: dayStart.toISOString() } : {}),
+          // The daily pick is one canonical look — session skips don't apply to it.
+          ...(daily
+            ? { mode: 'daily', dayStart: dayStart.toISOString() }
+            : rejected.current.length
+              ? { avoidCombos: rejected.current.slice(-8) }
+              : {}),
         }),
       })
       const data = await res.json()
@@ -178,6 +188,10 @@ export function StyleClient({
   function skipLook(look: Look) {
     if (!look.id) return
     rateOutfit(look.id, -1).catch(() => {})
+    // Remember the PAIRING, not the pieces — each garment stays individually
+    // eligible, so one skip can't quietly retire a favourite for the session.
+    const combo = look.items.map((i) => i.id)
+    if (combo.length) rejected.current = [...rejected.current, combo].slice(-8)
     setSkipped({ id: look.id, at: Date.now() })
   }
 

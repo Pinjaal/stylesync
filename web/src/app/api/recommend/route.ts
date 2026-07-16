@@ -115,6 +115,7 @@ export async function POST(req: Request) {
     styleQuery?: string
     mode?: string
     dayStart?: string
+    avoidCombos?: unknown
   }
   try {
     body = await req.json()
@@ -122,6 +123,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
   const { occasion, season, weather, styleQuery, mode, dayStart } = body
+
+  // Pairings the user just swiped away, sent by the client and therefore untrusted:
+  // clamp the shape and size before it reaches a prompt. Session-only — nothing here
+  // is stored or learned from.
+  const avoidCombos: string[][] = Array.isArray(body.avoidCombos)
+    ? body.avoidCombos
+        .filter((c): c is string[] => Array.isArray(c) && c.every((x) => typeof x === 'string'))
+        .map((c) => c.slice(0, 6))
+        .slice(0, 8)
+    : []
   if (!occasion || !season) {
     return NextResponse.json({ error: 'occasion and season are required' }, { status: 400 })
   }
@@ -262,6 +273,7 @@ export async function POST(req: Request) {
       weather: weatherNow,
       styleQuery,
       avoidIds,
+      avoidCombos: avoidCombos.length ? avoidCombos : undefined,
       taste,
     })
 

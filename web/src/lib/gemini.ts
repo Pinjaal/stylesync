@@ -207,6 +207,12 @@ export interface ComposeCtx {
   styleQuery?: string
   /** Items featured in recent daily picks — nudge the stylist somewhere new. */
   avoidIds?: string[]
+  /**
+   * Exact pairings rejected in THIS session. Combination-level on purpose: a skip
+   * says the combo missed, not that the garments are bad, so the pieces stay
+   * individually eligible. Ephemeral — never persisted, never learned from.
+   */
+  avoidCombos?: string[][]
   /** What we know about this person's taste — see lib/taste.ts. */
   taste?: string
 }
@@ -256,6 +262,13 @@ ${
     ? `
 These pieces were featured in the last few days — build something DIFFERENT from the rest of the wardrobe. Only reuse one if nothing else genuinely works for the occasion:
 ${JSON.stringify(ctx.avoidIds)}
+`
+    : ''
+}${
+  ctx.avoidCombos?.length
+    ? `
+They have already turned these exact pairings down just now — do NOT rebuild them. The individual pieces are still fine; it is the combination that missed, so feel free to restyle any of them with something else:
+${JSON.stringify(ctx.avoidCombos)}
 `
     : ''
 }
