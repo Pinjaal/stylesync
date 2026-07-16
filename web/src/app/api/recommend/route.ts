@@ -4,6 +4,7 @@ import { embedText } from '@/lib/processor'
 import { composeOutfits } from '@/lib/gemini'
 import { getSignedUrls } from '@/lib/storage'
 import { buildTasteContext } from '@/lib/taste'
+import { getWeather, coordsFromRequest } from '@/lib/weather'
 
 // Embedding (possibly a cold HF Space) + Gemini can be slow; take the full window.
 export const maxDuration = 60
@@ -232,6 +233,14 @@ export async function POST(req: Request) {
       if (ids.length && ids.length < cands.length) avoidIds = ids
     }
 
+    // Real conditions, not a guess. `weather` had been threaded all the way into
+    // the prompt and was ALWAYS {} — the stylist kept saying "Monsoon Office Chic"
+    // with no idea whether it was actually raining. Falls back to whatever the
+    // caller sent (nothing, today) when Vercel's geo headers are absent, e.g. local.
+    const coords = coordsFromRequest(req)
+    const live = coords ? await getWeather(coords.lat, coords.lon) : null
+    const weatherNow = live ?? weather ?? null
+
     // What we know about this person: their Style DNA, the looks they kept, and
     // (scoped to this occasion) the pairings they passed on. Best-effort — taste
     // is a bonus signal, never a reason to fail a recommendation.
@@ -250,7 +259,7 @@ export async function POST(req: Request) {
     const composed = await composeOutfits(cands, {
       occasion,
       season,
-      weather,
+      weather: weatherNow,
       styleQuery,
       avoidIds,
       taste,
@@ -302,7 +311,7 @@ export async function POST(req: Request) {
       item_ids: o.item_ids,
       occasion,
       season,
-      weather: weather ?? null,
+      weather: weatherNow,
       style_query: styleQuery ?? null,
       reasoning: o.reasoning,
       style_tips: o.style_tips.length ? o.style_tips : null,

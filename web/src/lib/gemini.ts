@@ -211,12 +211,32 @@ export interface ComposeCtx {
   taste?: string
 }
 
+/**
+ * Render weather as an instruction, not a JSON blob. Passing `{"rain":true}` next to
+ * an existing `season=monsoon` changed nothing measurable — the model already knew
+ * the season, so the raw flag was redundant. Temperature is the genuinely new fact
+ * (monsoon says nothing about 22°C vs 34°C), and rain only bites when we say what to
+ * DO about it.
+ */
+function renderWeather(w: unknown): string {
+  if (!w || typeof w !== 'object') return 'unknown'
+  const { tempC, label, rain } = w as { tempC?: number; label?: string; rain?: boolean }
+  if (typeof tempC !== 'number') return 'unknown'
+  const base = `${tempC}°C and ${label ?? 'unclear'}`
+  if (rain) {
+    return `${base}. IT IS ACTUALLY RAINING RIGHT NOW — prefer darker colours and fabrics that cope with wet, and avoid anything pale, delicate or floor-length that would drag through puddles.`
+  }
+  if (tempC >= 30) return `${base}. It is genuinely hot — favour light, breathable fabrics.`
+  if (tempC <= 15) return `${base}. It is cold — layer properly.`
+  return base
+}
+
 function composePrompt(
   candidates: OutfitCandidate[],
   ctx: ComposeCtx,
 ): string {
-  return `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(
-    ctx.weather ?? {},
+  return `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${renderWeather(
+    ctx.weather,
   )}, style=${ctx.styleQuery || 'no preference'}
 ${ctx.taste ? `\n${ctx.taste}\n` : ''}
 Candidate items from their wardrobe:
