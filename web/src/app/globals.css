@@ -900,6 +900,57 @@ textarea {
   font-weight: 600;
 }
 
+/* ------- stylist scorecard (profile) ------- */
+.sparkstat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.sparkstat .ss-n {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.sparkstat .ss-d {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.sparkstat .ss-d.up {
+  color: var(--success);
+}
+.sparkstat .ss-l {
+  font-size: 13px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+.sparkstat .ss-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.sparkstat .ss-row b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.sparkstat .ss-hint {
+  font-size: 12.5px;
+  color: var(--ink-mute);
+  margin: 10px 0 0;
+}
+
 /* ------- skip reason bar (deck) -------
    A left-swipe is one ambiguous bit — wrong occasion, bad pairing, or just "not
    today". This asks, so the signal is labelled rather than guessed at. Optional:

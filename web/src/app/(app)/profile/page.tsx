@@ -4,6 +4,7 @@ import { Sparkles, BarChart3, Bell, LogOut, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/app/auth/actions'
 import type { StylePreferences } from '@/lib/styleDna'
+import { getStylistMetrics } from '@/lib/metrics'
 import { GuestProfile } from '../_components/guest/GuestProfile'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,7 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser()
   if (!user) return <GuestProfile />
 
-  const [{ data: profile }, itemsRes, outfitsRes] = await Promise.all([
+  const [{ data: profile }, itemsRes, outfitsRes, metrics] = await Promise.all([
     supabase
       .from('profiles')
       .select('display_name, style_preferences')
@@ -27,6 +28,7 @@ export default async function ProfilePage() {
       .eq('is_active', true)
       .returns<{ times_worn: number | null }[]>(),
     supabase.from('outfits').select('id', { count: 'exact', head: true }),
+    getStylistMetrics(supabase),
   ])
 
   const prefs = (profile?.style_preferences ?? {}) as StylePreferences
@@ -91,6 +93,37 @@ export default async function ProfilePage() {
             </div>
           </>
         )}
+
+        {/* Is the stylist actually any good? Save rate answers it; coverage keeps
+            it honest (a rate that climbs while coverage falls = a filter bubble). */}
+        <div className="sec-t">How Spark is doing</div>
+        <div className="sparkstat">
+          <div className="ss-main">
+            <div className="ss-n">
+              {metrics.rate7 == null ? '—' : `${metrics.rate7}%`}
+              {metrics.delta != null && metrics.delta !== 0 && (
+                <span className={`ss-d${metrics.delta > 0 ? ' up' : ''}`}>
+                  {metrics.delta > 0 ? '▲' : '▼'} {Math.abs(metrics.delta)}
+                </span>
+              )}
+            </div>
+            <div className="ss-l">
+              of looks kept this week
+              {metrics.ratePrev != null && <> · was {metrics.ratePrev}%</>}
+            </div>
+          </div>
+          <div className="ss-row">
+            <span>
+              <b>{metrics.kept7}</b> kept of <b>{metrics.shown7}</b> shown
+            </span>
+            <span>
+              <b>{metrics.coverage30}%</b> of closet styled
+            </span>
+          </div>
+          {metrics.shown7 === 0 && (
+            <p className="ss-hint">Style a few looks and this starts tracking.</p>
+          )}
+        </div>
 
         <div className="sec-t">Settings</div>
         <div className="menu">
