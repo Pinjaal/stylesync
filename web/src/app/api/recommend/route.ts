@@ -204,8 +204,27 @@ export async function POST(req: Request) {
       )
     }
 
+    // Daily pick: steer away from what the last few days already featured.
+    // Without this the inputs are byte-identical every weekday (occasion 'work',
+    // same season, no styleQuery, same closet), so the model returns the SAME
+    // look each day — caching a deterministic call doesn't make it vary.
+    // We only reach here when today has no pick yet, so these rows are prior days.
+    let avoidIds: string[] | undefined
+    if (isDaily) {
+      const { data: recent } = await supabase
+        .from('outfits')
+        .select('item_ids')
+        .eq('source', 'daily')
+        .order('created_at', { ascending: false })
+        .limit(4)
+        .returns<{ item_ids: string[] | null }[]>()
+      const ids = [...new Set((recent ?? []).flatMap((r) => r.item_ids ?? []))]
+      // Never avoid so much that there's nothing left to style with.
+      if (ids.length && ids.length < cands.length) avoidIds = ids
+    }
+
     // 3. Let Gemini compose outfits from those candidates
-    const composed = await composeOutfits(cands, { occasion, season, weather, styleQuery })
+    const composed = await composeOutfits(cands, { occasion, season, weather, styleQuery, avoidIds })
 
     // 4. Sign all images once
     const byId = new Map(cands.map((c) => [c.id, c]))

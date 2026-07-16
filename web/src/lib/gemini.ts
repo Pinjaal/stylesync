@@ -200,9 +200,18 @@ export interface ComposedOutfit {
 
 const COMPOSE_SYSTEM = `You are a fashion stylist. From ONLY the candidate items provided, compose 2-3 complete outfits that fit the user's request. Each outfit should usually include a top + bottom (or a dress), plus optional outerwear/footwear/accessory. Use only item IDs that appear in the candidates. Prioritize color coordination and occasion appropriateness. Give each outfit a short, punchy editorial 'title' (2-4 words, e.g. "Date-night drama", "Quiet luxury Monday"). In 'reasoning', explain each outfit in one or two sentences. In 'style_tips', give 2-3 very short actionable tips.`
 
+export interface ComposeCtx {
+  occasion: string
+  season: string
+  weather?: unknown
+  styleQuery?: string
+  /** Items featured in recent daily picks — nudge the stylist somewhere new. */
+  avoidIds?: string[]
+}
+
 function composePrompt(
   candidates: OutfitCandidate[],
-  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+  ctx: ComposeCtx,
 ): string {
   return `User wants: occasion=${ctx.occasion}, season=${ctx.season}, weather=${JSON.stringify(
     ctx.weather ?? {},
@@ -220,13 +229,20 @@ ${JSON.stringify(
   null,
   2,
 )}
-
+${
+  ctx.avoidIds?.length
+    ? `
+These pieces were featured in the last few days — build something DIFFERENT from the rest of the wardrobe. Only reuse one if nothing else genuinely works for the occasion:
+${JSON.stringify(ctx.avoidIds)}
+`
+    : ''
+}
 Compose 2-3 outfits.`
 }
 
 export async function composeOutfits(
   candidates: OutfitCandidate[],
-  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+  ctx: ComposeCtx,
 ): Promise<ComposedOutfit[]> {
   // Diagnostic: confirms whether the running deployment actually sees the key.
   console.log(
@@ -255,7 +271,7 @@ export async function composeOutfits(
 // Native Gemini path (structured output via schema).
 async function composeViaGemini(
   candidates: OutfitCandidate[],
-  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+  ctx: ComposeCtx,
 ): Promise<ComposedOutfit[]> {
   const model = genAI.getGenerativeModel({
     model: GEMINI_MODEL,
@@ -275,7 +291,7 @@ async function composeViaGemini(
 // (Claude, GPT, Llama, Gemini…) — JSON is requested in-prompt and parsed defensively.
 async function composeViaOpenRouter(
   candidates: OutfitCandidate[],
-  ctx: { occasion: string; season: string; weather?: unknown; styleQuery?: string },
+  ctx: ComposeCtx,
 ): Promise<ComposedOutfit[]> {
   const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash'
   const system = `${COMPOSE_SYSTEM}
