@@ -900,6 +900,58 @@ textarea {
   font-weight: 600;
 }
 
+/* ------- skip reason bar (deck) -------
+   A left-swipe is one ambiguous bit — wrong occasion, bad pairing, or just "not
+   today". This asks, so the signal is labelled rather than guessed at. Optional:
+   ignoring it simply leaves the skip unlabelled. */
+.skipbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 96px;
+  z-index: 45;
+  width: calc(100% - 28px);
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: var(--r-lg);
+  background: var(--ink);
+  box-shadow: var(--shadow-pop);
+  animation: rise 0.22s ease both;
+}
+.skipbar .sb-q {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgb(var(--surface-rgb) / 0.75);
+  margin-right: 2px;
+}
+.skipbar .sb-chip {
+  padding: 6px 11px;
+  border-radius: var(--r-pill);
+  background: rgb(var(--surface-rgb) / 0.12);
+  color: var(--surface);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: 0.14s;
+}
+.skipbar .sb-chip:hover {
+  background: rgb(var(--surface-rgb) / 0.24);
+}
+.skipbar .sb-x {
+  margin-left: auto;
+  color: rgb(var(--surface-rgb) / 0.5);
+  display: flex;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .skipbar {
+    bottom: 24px;
+  }
+}
+
 /* ------- add / auto-tag banner ------- */
 .add-banner {
   display: flex;

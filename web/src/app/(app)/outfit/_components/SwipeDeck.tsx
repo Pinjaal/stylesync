@@ -14,6 +14,7 @@ export function SwipeDeck({
   onNeedMore,
   onReshuffle,
   onSave,
+  onSkip,
   onOpen,
   onExit,
 }: {
@@ -22,6 +23,8 @@ export function SwipeDeck({
   onNeedMore: () => void
   onReshuffle: () => void
   onSave: (look: Look) => void
+  /** Left-swipe. Optional so the guest deck can ignore it. */
+  onSkip?: (look: Look) => void
   onOpen: (look: Look) => void
   onExit: () => void
 }) {
@@ -39,6 +42,8 @@ export function SwipeDeck({
     if (flung) return
     setFlung(dir)
     if (dir === 'right' && current) onSave(current)
+    // A left-swipe was previously discarded entirely — ~95% of the signal.
+    if (dir === 'left' && current) onSkip?.(current)
     setTimeout(() => {
       setIndex((i) => i + 1)
       setDx(0)

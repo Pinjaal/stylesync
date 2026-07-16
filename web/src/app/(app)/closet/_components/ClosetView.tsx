@@ -45,7 +45,7 @@ export function ClosetView({
 }: {
   items: ClosetItem[]
   segments: SegmentSummary[]
-  stats: { pieces: number; looks: number; wornPct: number }
+  stats: { pieces: number; looks: number; wornPct: number; coveredPct: number }
   error: string | null
 }) {
   const router = useRouter()
@@ -117,6 +117,9 @@ export function ClosetView({
         </span>
         <span className="wstats-item">
           <b>{stats.wornPct}%</b> worn this month
+        </span>
+        <span className="wstats-item" title="Share of your closet the stylist has surfaced in the last 30 days">
+          <b>{stats.coveredPct}%</b> styled this month
         </span>
       </div>
 

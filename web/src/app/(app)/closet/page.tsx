@@ -37,10 +37,22 @@ export default async function ClosetPage() {
       .order('created_at', { ascending: false })
       .returns<Row[]>()
 
-  let [itemsRes, outfitsRes, segments] = await Promise.all([
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  let [itemsRes, outfitsRes, segments, recentRes] = await Promise.all([
     grid(GRID_COLS),
     supabase.from('outfits').select('id', { count: 'exact', head: true }),
     loadSegments(),
+    // Wardrobe coverage: which pieces the stylist has actually surfaced lately.
+    // This is the guardrail for the recommender — if learning from feedback ever
+    // starts collapsing onto a few "safe" pieces, coverage falls before anyone
+    // complains. Coverage without saves = random; saves without coverage = a
+    // filter bubble. Both should climb.
+    supabase
+      .from('outfits')
+      .select('item_ids')
+      .gte('created_at', since)
+      .limit(400)
+      .returns<{ item_ids: string[] | null }[]>(),
   ])
   // 0005_item_name not applied yet — fall back so the closet still renders.
   if (isMissingNameColumn(itemsRes.error)) {
@@ -72,11 +84,17 @@ export default async function ClosetPage() {
   ).length
   const wornPct = rows.length ? Math.round((wornThisMonth / rows.length) * 100) : 0
 
+  const surfaced = new Set((recentRes.data ?? []).flatMap((o) => o.item_ids ?? []))
+  const owned = new Set(rows.map((r) => r.id))
+  const coveredPct = rows.length
+    ? Math.round(([...surfaced].filter((id) => owned.has(id)).length / rows.length) * 100)
+    : 0
+
   return (
     <ClosetView
       items={items}
       segments={segments}
-      stats={{ pieces: rows.length, looks: outfitsRes.count ?? 0, wornPct }}
+      stats={{ pieces: rows.length, looks: outfitsRes.count ?? 0, wornPct, coveredPct }}
       error={itemsRes.error?.message ?? null}
     />
   )

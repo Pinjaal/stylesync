@@ -1,14 +1,23 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Flame, Shuffle, Heart, Check, ArrowRight, Loader2 } from 'lucide-react'
+import { Flame, Shuffle, Heart, Check, ArrowRight, Loader2, X } from 'lucide-react'
 import { Spark } from '@/components/Spark'
 import { LookCollage } from './_components/LookCollage'
 import { SwipeDeck } from './_components/SwipeDeck'
 import { LookDetail } from './_components/LookDetail'
 import type { Look } from './_components/types'
 import type { StreakInfo } from '@/lib/streak'
-import { rateOutfit, markOutfitWorn } from './actions'
+import { rateOutfit, markOutfitWorn, logSkipReason, type SkipReason } from './actions'
+
+// Only 'piece' is item-negative; the rest are context/noise. Nothing acts on these
+// yet — Phase 1 just collects clean labels so a later scoring pass can be trusted.
+const SKIP_REASONS: { key: SkipReason; label: string }[] = [
+  { key: 'occasion', label: 'Wrong occasion' },
+  { key: 'combo', label: 'Not this combo' },
+  { key: 'mood', label: 'Not today' },
+  { key: 'piece', label: 'Dislike a piece' },
+]
 
 const QUICK: { label: string; occasion: string }[] = [
   { label: 'Brunch', occasion: 'casual' },
@@ -48,6 +57,7 @@ export function StyleClient({
   const [loadingMore, setLoadingMore] = useState(false)
   const [activeLook, setActiveLook] = useState<Look | null>(null)
   const backTo = useRef<View>('home')
+  const [skipped, setSkipped] = useState<{ id: string; at: number } | null>(null)
 
   const [prompt, setPrompt] = useState('')
   const [quick, setQuick] = useState<string | null>(null)
@@ -162,6 +172,15 @@ export function StyleClient({
     if (look.id) rateOutfit(look.id, 1).catch(() => {})
   }
 
+  // Record the skip immediately (outfit-level, and context-scoped for free since
+  // the outfit row carries occasion+season), then offer an optional reason. No
+  // answer is fine — it just means this bit stays unlabelled.
+  function skipLook(look: Look) {
+    if (!look.id) return
+    rateOutfit(look.id, -1).catch(() => {})
+    setSkipped({ id: look.id, at: Date.now() })
+  }
+
   function openDeckFromToday() {
     lastReq.current = { occasion: todayOccasion }
     setView('deck')
@@ -170,19 +189,42 @@ export function StyleClient({
   // ---- deck view ----
   if (view === 'deck') {
     return (
-      <SwipeDeck
-        looks={looks}
-        loadingMore={loadingMore}
-        onNeedMore={needMore}
-        onReshuffle={reshuffle}
-        onSave={saveLook}
-        onOpen={(l) => {
-          setActiveLook(l)
-          backTo.current = 'deck'
-          setView('look')
-        }}
-        onExit={() => setView('home')}
-      />
+      <>
+        <SwipeDeck
+          looks={looks}
+          loadingMore={loadingMore}
+          onNeedMore={needMore}
+          onReshuffle={reshuffle}
+          onSave={saveLook}
+          onSkip={skipLook}
+          onOpen={(l) => {
+            setActiveLook(l)
+            backTo.current = 'deck'
+            setView('look')
+          }}
+          onExit={() => setView('home')}
+        />
+        {skipped && (
+          <div className="skipbar" key={skipped.id}>
+            <span className="sb-q">Why not?</span>
+            {SKIP_REASONS.map((r) => (
+              <button
+                key={r.key}
+                className="sb-chip"
+                onClick={() => {
+                  logSkipReason(skipped.id, r.key).catch(() => {})
+                  setSkipped(null)
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
+            <button className="sb-x" onClick={() => setSkipped(null)} aria-label="Dismiss">
+              <X size={14} strokeWidth={2.2} />
+            </button>
+          </div>
+        )}
+      </>
     )
   }
 
