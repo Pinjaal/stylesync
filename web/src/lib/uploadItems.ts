@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { imageFileError, safeImageExt } from '@/lib/imageValidation'
 
 const BUCKET = 'wardrobe'
 
@@ -28,8 +29,10 @@ export async function uploadItems(files: File[], cb: UploadCallbacks = {}): Prom
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     try {
+      const badFile = imageFileError(file)
+      if (badFile) throw new Error(badFile)
       const itemId = crypto.randomUUID()
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const ext = safeImageExt(file.name)
       const rawKey = `${user.id}/raw/${itemId}.${ext}`
 
       const { error: upErr } = await supabase.storage

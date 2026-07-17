@@ -5,9 +5,12 @@ import { composeOutfits } from '@/lib/gemini'
 import { getSignedUrls } from '@/lib/storage'
 import { buildTasteContext } from '@/lib/taste'
 import { getWeather, coordsFromRequest } from '@/lib/weather'
+import { rateLimit } from '@/lib/rateLimit'
 
 // Embedding (possibly a cold HF Space) + Gemini can be slow; take the full window.
 export const maxDuration = 60
+
+const MAX_STYLE_QUERY = 300
 
 interface Candidate {
   id: string
@@ -122,7 +125,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
-  const { occasion, season, weather, styleQuery, mode, dayStart } = body
+  const { occasion, season, weather, mode, dayStart } = body
 
   // Pairings the user just swiped away, sent by the client and therefore untrusted:
   // clamp the shape and size before it reaches a prompt. Session-only — nothing here
@@ -136,6 +139,19 @@ export async function POST(req: Request) {
   if (!occasion || !season) {
     return NextResponse.json({ error: 'occasion and season are required' }, { status: 400 })
   }
+  const styleQuery =
+    typeof body.styleQuery === 'string' ? body.styleQuery.slice(0, MAX_STYLE_QUERY) : undefined
+
+  // Each call fans out to an embedding service + a paid LLM, so cap per-user
+  // request volume to blunt runaway or abusive usage.
+  const rl = rateLimit(`recommend:${user.id}`, 20, 60_000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+    )
+  }
+
   // The Style home's auto "today's look". Tagged source='daily' so it is excluded
   // from the streak, and reused for the rest of the day rather than regenerated
   // on every page load (which used to write 2-3 rows per visit).
@@ -178,7 +194,8 @@ export async function POST(req: Request) {
       p_limit: 20,
     })
     if (error) {
-      return NextResponse.json({ error: `Retrieval failed: ${error.message}` }, { status: 500 })
+      console.error('recommend match_items error:', error)
+      return NextResponse.json({ error: 'Retrieval failed' }, { status: 500 })
     }
     const cands = (candidates ?? []) as Candidate[]
     const seen = new Set(cands.map((c) => c.id))
@@ -201,6 +218,7 @@ export async function POST(req: Request) {
       const { data: tagged } = await supabase
         .from('items')
         .select(ITEM_COLS)
+        .eq('user_id', user.id) // defence-in-depth; do not rely on RLS alone
         .eq('is_active', true)
         .contains('occasions', [occasion.toLowerCase()])
         .limit(24)
@@ -213,6 +231,7 @@ export async function POST(req: Request) {
       const { data: allItems } = await supabase
         .from('items')
         .select(ITEM_COLS)
+        .eq('user_id', user.id) // defence-in-depth; do not rely on RLS alone
         .eq('is_active', true)
         .limit(40)
       pushUnique((allItems ?? []) as Omit<Candidate, 'similarity'>[])
@@ -355,8 +374,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ outfits })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('recommend error:', err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Something went wrong composing your outfits.' }, { status: 500 })
   }
 }
