@@ -9,11 +9,12 @@ export interface Look {
   items: LookItem[]
 }
 
-// Stable match % for the deck: use model confidence, else a pseudo score.
-export function matchPct(look: Look): number {
-  if (look.confidence != null) return Math.min(99, Math.max(60, Math.round(look.confidence * 100)))
-  const key = look.id ?? look.title ?? look.reasoning
-  let h = 0
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) & 0xffff
-  return 84 + (h % 15)
+// The deck's match %. `confidence` is the server's personalized match (0..1) —
+// the stylist's own confidence blended with how the user has responded to these
+// pieces (see lib/metrics.ts outfitMatch). Returns null when there's no signal,
+// so the UI hides the chip rather than showing an invented number (this used to
+// hash the title into a fake 84-98%).
+export function matchPct(look: Look): number | null {
+  if (look.confidence == null) return null
+  return Math.min(99, Math.max(55, Math.round(look.confidence * 100)))
 }

@@ -131,10 +131,12 @@ export function SwipeDeck({
                       .join(' · ')}
                   </div>
                 </div>
-                <div className="match">
-                  <Spark />
-                  <span>{matchPct(current)}%</span>
-                </div>
+                {matchPct(current) != null && (
+                  <div className="match">
+                    <Spark />
+                    <span>{matchPct(current)}%</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

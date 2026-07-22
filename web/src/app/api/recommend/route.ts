@@ -6,6 +6,7 @@ import { getSignedUrls } from '@/lib/storage'
 import { buildTasteContext, buildSegmentContext } from '@/lib/taste'
 import { getWeather, coordsFromRequest } from '@/lib/weather'
 import { rateLimit } from '@/lib/rateLimit'
+import { itemAffinity, outfitMatch, type Affinity } from '@/lib/metrics'
 
 // Embedding (possibly a cold HF Space) + Gemini can be slow; take the full window.
 export const maxDuration = 60
@@ -302,6 +303,15 @@ export async function POST(req: Request) {
       taste,
     })
 
+    // Per-item taste scores → a real match % (see outfitMatch). Best-effort; an
+    // empty map just means every look falls back to the model's own confidence.
+    let aff = new Map<string, Affinity>()
+    try {
+      aff = await itemAffinity(supabase)
+    } catch (err) {
+      console.error('affinity failed (match falls back to confidence):', err)
+    }
+
     // 4. Sign all images once
     const byId = new Map(cands.map((c) => [c.id, c]))
     const keys = cands
@@ -316,7 +326,10 @@ export async function POST(req: Request) {
         title: o.title ?? null,
         reasoning: o.reasoning,
         style_tips: o.style_tips ?? [],
-        confidence: o.confidence ?? null,
+        // `confidence` now carries the personalized match (0..1, or null when
+        // there's no signal) rather than the model's raw self-rating — it's what
+        // the deck's % chip renders, and null hides the chip instead of faking one.
+        confidence: outfitMatch(o.confidence, o.item_ids, aff),
         items: o.item_ids
           .map((id) => byId.get(id))
           .filter((c): c is Candidate => Boolean(c))

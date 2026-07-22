@@ -38,6 +38,76 @@ export interface StylistMetrics {
 const DAY = 24 * 60 * 60 * 1000
 const iso = (ms: number) => new Date(ms).toISOString()
 
+export interface Affinity {
+  score: number // 0..1, smoothed. 0.5 = neutral / unknown.
+  n: number // how many rated outfits this item appeared in (0 = no real signal)
+}
+
+/**
+ * Per-item taste score from the user's own history. Wearing counts double a save
+ * (a save is a maybe; putting it on your body is the vote). Smoothed with a
+ * Beta(1,1) prior so a single event can't create a 100%/0% item — an unseen item
+ * sits at exactly 0.5. This powers the match % (see outfitMatch); it does NOT
+ * order or filter candidates, so it can't bury a garment. That's Phase 2, gated
+ * on ~50 skips.
+ */
+export async function itemAffinity(supabase: DB): Promise<Map<string, Affinity>> {
+  const { data } = await supabase
+    .from('outfits')
+    .select('item_ids, user_rating, was_worn')
+    .neq('source', 'daily')
+    .limit(600)
+    .returns<{ item_ids: string[] | null; user_rating: number | null; was_worn: boolean | null }[]>()
+
+  const agg = new Map<string, { pos: number; neg: number; n: number }>()
+  for (const o of data ?? []) {
+    const worn = o.was_worn ? 1 : 0
+    const loved = o.user_rating === 1 ? 1 : 0
+    const passed = o.user_rating === -1 ? 1 : 0
+    const pos = worn * 2 + loved
+    if (!pos && !passed) continue // shown-but-unrated tells us nothing here
+    for (const id of o.item_ids ?? []) {
+      const a = agg.get(id) ?? { pos: 0, neg: 0, n: 0 }
+      a.pos += pos
+      a.neg += passed
+      a.n += 1
+      agg.set(id, a)
+    }
+  }
+
+  const out = new Map<string, Affinity>()
+  for (const [id, a] of agg) {
+    out.set(id, { score: (a.pos + 1) / (a.pos + a.neg + 2), n: a.n })
+  }
+  return out
+}
+
+/**
+ * A real, personalized match % for a look — or null when there's genuinely no
+ * signal (in which case the UI hides the chip rather than invent one; the old
+ * code hashed the title into a fake 84-98%).
+ *
+ * Blend: mostly the stylist's own confidence, nudged by how the user has
+ * historically responded to these exact pieces. Unrated pieces contribute the
+ * neutral 0.5, so unknowns don't distort — a saved piece lifts the score, a
+ * skipped one lowers it.
+ */
+export function outfitMatch(
+  confidence: number | null | undefined,
+  itemIds: string[],
+  aff: Map<string, Affinity>,
+): number | null {
+  const hasRated = itemIds.some((id) => (aff.get(id)?.n ?? 0) > 0)
+  if (confidence == null && !hasRated) return null
+
+  const conf = confidence ?? 0.75 // model gave none — assume a decent look
+  const affMean = itemIds.length
+    ? itemIds.reduce((s, id) => s + (aff.get(id)?.score ?? 0.5), 0) / itemIds.length
+    : 0.5
+  const blended = conf * 0.7 + affMean * 0.3
+  return Math.min(0.99, Math.max(0.55, blended))
+}
+
 export async function getStylistMetrics(supabase: DB): Promise<StylistMetrics> {
   const now = Date.now()
   const d7 = iso(now - 7 * DAY)
