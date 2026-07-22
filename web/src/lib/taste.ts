@@ -125,3 +125,48 @@ export async function buildTasteContext(
 function occasionKey(occasion: string): string {
   return occasion.trim().toLowerCase()
 }
+
+/**
+ * Segments ("Work capsule", "Goa trip") are the user hand-labelling their own
+ * taste — a strong, explicit signal the stylist has never seen. We list each
+ * named set and WHICH OF THE CURRENT CANDIDATES belong to it, then let the model
+ * decide relevance: "Work capsule" fits work, "Goa trip" fits beach/travel, and
+ * the LLM maps those far better than any hard-coded keyword table would.
+ *
+ * Scoped to the candidate pool on purpose: a set whose pieces aren't in play this
+ * request is noise. And it's a soft "prefer", never a filter — consistent with
+ * order-don't-exclude.
+ */
+const MAX_SEGMENTS = 4
+const MAX_SEG_MEMBERS = 8
+
+export async function buildSegmentContext(
+  supabase: DB,
+  candidateIds: string[],
+): Promise<string | undefined> {
+  if (!candidateIds.length) return undefined
+  const inPool = new Set(candidateIds)
+
+  const [{ data: segs }, { data: members }] = await Promise.all([
+    supabase.from('segments').select('id, name').order('created_at', { ascending: false }),
+    supabase.from('segment_items').select('segment_id, item_id'),
+  ])
+  if (!segs?.length) return undefined
+
+  const byId = new Map<string, { name: string; ids: string[] }>()
+  for (const s of segs as { id: string; name: string }[]) byId.set(s.id, { name: s.name, ids: [] })
+  for (const m of (members ?? []) as { segment_id: string; item_id: string }[]) {
+    if (inPool.has(m.item_id)) byId.get(m.segment_id)?.ids.push(m.item_id)
+  }
+
+  const lines = [...byId.values()]
+    .filter((s) => s.ids.length)
+    .slice(0, MAX_SEGMENTS)
+    .map((s) => `- "${s.name}": ${JSON.stringify(s.ids.slice(0, MAX_SEG_MEMBERS))}`)
+  if (!lines.length) return undefined
+
+  return (
+    `The user groups some of their own pieces into named sets. If the occasion suits one of these, favour its pieces:\n` +
+    lines.join('\n')
+  )
+}

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { embedText } from '@/lib/processor'
 import { composeOutfits } from '@/lib/gemini'
 import { getSignedUrls } from '@/lib/storage'
-import { buildTasteContext } from '@/lib/taste'
+import { buildTasteContext, buildSegmentContext } from '@/lib/taste'
 import { getWeather, coordsFromRequest } from '@/lib/weather'
 import { rateLimit } from '@/lib/rateLimit'
 
@@ -276,11 +276,17 @@ export async function POST(req: Request) {
     // is a bonus signal, never a reason to fail a recommendation.
     let taste: string | undefined
     try {
-      taste = await buildTasteContext(supabase, {
-        occasion,
-        vibes,
-        dnaTitle: prefs.styleDna?.title ?? null,
-      })
+      const [taste0, segs] = await Promise.all([
+        buildTasteContext(supabase, {
+          occasion,
+          vibes,
+          dnaTitle: prefs.styleDna?.title ?? null,
+        }),
+        // Segments = the user's own hand-labelled sets ("Work capsule"), scoped to
+        // the pieces actually in play this request. A bonus nudge, never required.
+        buildSegmentContext(supabase, cands.map((c) => c.id)),
+      ])
+      taste = [taste0, segs].filter(Boolean).join('\n\n') || undefined
     } catch (err) {
       console.error('taste context failed (continuing without):', err)
     }
