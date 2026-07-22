@@ -292,6 +292,25 @@ export async function POST(req: Request) {
       console.error('taste context failed (continuing without):', err)
     }
 
+    // Exploration slot: which of the (occasion-appropriate) candidates does the
+    // user own but never/rarely wear? Nudge one look toward these so the wardrobe
+    // rotates. Skipped for the daily pick (that's one canonical look, not a browse).
+    let rediscover: string[] | undefined
+    if (!isDaily && cands.length) {
+      const { data: wornRows } = await supabase
+        .from('items')
+        .select('id, times_worn')
+        .in('id', cands.map((c) => c.id))
+        .returns<{ id: string; times_worn: number | null }[]>()
+      const neglected = (wornRows ?? [])
+        .filter((r) => (r.times_worn ?? 0) === 0)
+        .map((r) => r.id)
+        .slice(0, 8)
+      // Only nudge if there's a real mix — if EVERYTHING is unworn (brand-new
+      // closet) the nudge is meaningless, and if nothing is, there's nothing to do.
+      if (neglected.length && neglected.length < cands.length) rediscover = neglected
+    }
+
     // 3. Let Gemini compose outfits from those candidates
     const composed = await composeOutfits(cands, {
       occasion,
@@ -301,6 +320,7 @@ export async function POST(req: Request) {
       avoidIds,
       avoidCombos: avoidCombos.length ? avoidCombos : undefined,
       taste,
+      rediscover,
     })
 
     // Per-item taste scores → a real match % (see outfitMatch). Best-effort; an

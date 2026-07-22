@@ -252,6 +252,12 @@ export interface ComposeCtx {
   avoidCombos?: string[][]
   /** What we know about this person's taste — see lib/taste.ts. */
   taste?: string
+  /**
+   * Owned-but-rarely-worn item ids. The exploration slot: nudge ONE look toward a
+   * neglected piece so the wardrobe rotates instead of collapsing onto favourites.
+   * Soft and occasion-gated (these are already occasion-appropriate candidates).
+   */
+  rediscover?: string[]
 }
 
 /**
@@ -306,6 +312,13 @@ ${JSON.stringify(ctx.avoidIds)}
     ? `
 They have already turned these exact pairings down just now — do NOT rebuild them. The individual pieces are still fine; it is the combination that missed, so feel free to restyle any of them with something else:
 ${JSON.stringify(ctx.avoidCombos)}
+`
+    : ''
+}${
+  ctx.rediscover?.length
+    ? `
+The user OWNS these pieces but rarely or never wears them. Make ONE of your outfits feature a piece from this list — but only where it genuinely suits the occasion — so they rediscover their wardrobe. Never force a piece that doesn't work; the other outfits should still be your best picks:
+${JSON.stringify(ctx.rediscover)}
 `
     : ''
 }
