@@ -146,6 +146,14 @@ export function SignupForm({ reset = false }: { reset?: boolean }) {
             {loading ? <Loader2 size={18} className="animate-spin" /> : 'Send verification code'}
           </button>
 
+          {!reset && (
+            <p className="auth-legal">
+              By continuing you agree to our{' '}
+              <Link href="/legal/terms">Terms</Link> and{' '}
+              <Link href="/legal/privacy">Privacy Policy</Link>.
+            </p>
+          )}
+
           <div className="auth-foot">
             Already a member? <Link href="/login">Log in</Link>
           </div>
