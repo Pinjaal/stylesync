@@ -40,6 +40,7 @@ export function AppNav({
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState(0)
   const [prompt, setPrompt] = useState(false)
+  const [uploadErr, setUploadErr] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => () => {
@@ -60,20 +61,24 @@ export function AppNav({
   async function handleFiles(files: File[]) {
     setBusy(true)
     setStage(0)
+    setUploadErr(null)
     if (timer.current) clearInterval(timer.current)
     timer.current = setInterval(
       () => setStage((s) => Math.min(s + 1, STAGES.length - 1)),
       1500,
     )
-    const ids = await uploadItems(files)
+    let firstErr: string | null = null
+    const ids = await uploadItems(files, { onError: (m) => (firstErr ??= m) })
     if (timer.current) clearInterval(timer.current)
     setBusy(false)
-    if (files.length === 1 && ids.length === 1) {
-      router.push(`/closet/${ids[0]}?added=1`)
-    } else {
-      router.push('/closet')
+    // Only navigate if something actually landed; otherwise stay and explain why
+    // (e.g. the vision model rejected a non-clothing photo).
+    if (ids.length) {
+      if (files.length === 1 && ids.length === 1) router.push(`/closet/${ids[0]}?added=1`)
+      else router.push('/closet')
+      router.refresh()
     }
-    router.refresh()
+    if (firstErr) setUploadErr(firstErr)
   }
 
   return (
@@ -185,6 +190,18 @@ export function AppNav({
             <Spark className="spin" />
             <div className="t">Adding your piece</div>
             <div className="d">{STAGES[stage]}</div>
+          </div>
+        </div>
+      )}
+
+      {uploadErr && !busy && (
+        <div className="add-overlay" onClick={() => setUploadErr(null)}>
+          <div className="add-card" onClick={(e) => e.stopPropagation()}>
+            <div className="t">Couldn&apos;t add that</div>
+            <div className="d">{uploadErr}</div>
+            <button className="btn" style={{ marginTop: 16 }} onClick={() => setUploadErr(null)}>
+              Got it
+            </button>
           </div>
         </div>
       )}

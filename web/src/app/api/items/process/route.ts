@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { downloadFromStorage, uploadToStorage } from '@/lib/storage'
+import { downloadFromStorage, uploadToStorage, deleteFromStorage } from '@/lib/storage'
 import { processImage } from '@/lib/processor'
 import { extractAttributes } from '@/lib/gemini'
 import { MAX_IMAGE_BYTES, sniffedImageType } from '@/lib/imageValidation'
@@ -66,13 +66,30 @@ export async function POST(req: Request) {
     // 4. Send the cleaned PNG to Gemini for structured attributes
     const attrs = await extractAttributes(cleanedImage)
 
-    // 5. Insert the row in the items table (RLS enforces user_id == auth.uid())
+    // Gate: if the vision model decided this isn't a wearable item, reject it and
+    // clean up the storage we wrote so a stray upload doesn't leave orphans.
+    if (!attrs.is_clothing) {
+      await deleteFromStorage([rawKey, cleanedKey])
+      return NextResponse.json(
+        {
+          error:
+            attrs.reject_reason ||
+            "That doesn't look like a clothing item — try a clear photo of a single garment.",
+          notClothing: true,
+        },
+        { status: 422 },
+      )
+    }
+
+    // 5. Insert the row in the items table (RLS enforces user_id == auth.uid()).
+    // is_clothing/reject_reason are gate signals, not columns — drop them.
+    const { is_clothing: _ic, reject_reason: _rr, ...cols } = attrs
     const { error: insertError } = await supabase.from('items').insert({
       id: itemId,
       user_id: user.id,
       raw_image_key: rawKey,
       cleaned_image_key: cleanedKey,
-      ...attrs,
+      ...cols,
       embedding,
     })
     if (insertError) {

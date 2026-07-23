@@ -57,7 +57,9 @@ export async function uploadItems(files: File[], cb: UploadCallbacks = {}): Prom
       cb.onProgress?.(i + 1, files.length)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      cb.onError?.(`Item ${i + 1}: ${msg}`)
+      // Only number the errors when it's actually a batch — a single upload
+      // reads better as just the reason (e.g. the not-clothing rejection).
+      cb.onError?.(files.length > 1 ? `Item ${i + 1}: ${msg}` : msg)
       // keep going with the rest of the batch
     }
   }

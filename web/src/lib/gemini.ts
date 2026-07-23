@@ -55,6 +55,8 @@ function extractJson(text: string): string {
 const attributeSchema = {
   type: SchemaType.OBJECT,
   properties: {
+    is_clothing: { type: SchemaType.BOOLEAN },
+    reject_reason: { type: SchemaType.STRING },
     category: { type: SchemaType.STRING },
     subcategory: { type: SchemaType.STRING },
     colors: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
@@ -68,11 +70,16 @@ const attributeSchema = {
     features: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
     description: { type: SchemaType.STRING },
   },
-required: ['category', 'colors', 'occasions', 'seasons', 'description'],
+  required: ['is_clothing', 'category', 'colors', 'occasions', 'seasons', 'description'],
 } as Schema
-const SYSTEM = `You are a fashion analyst. Look at the clothing item and return structured attributes.
+const SYSTEM = `You are a fashion analyst. You are shown ONE image a user uploaded to add to their wardrobe. First decide whether it is actually a wearable clothing item or accessory, then return structured attributes.
 
-Use these vocabularies (pick from the list, or leave empty if uncertain):
+is_clothing:
+- true  — the image clearly shows a single wearable garment/footwear/accessory (a shirt, dress, kurta, jeans, shoes, bag, jewellery, etc.), whether laid flat, on a hanger, or worn by a person. Judge by the GARMENT, not whether a body is present.
+- false — the main subject is NOT wearable clothing: e.g. a face/selfie with no clear garment, a person where no single garment is identifiable, an animal, food, furniture, a gadget, a screenshot, scenery, or an image too blurry/dark to identify a garment. When false, put a short, friendly reason in reject_reason (e.g. "This looks like a selfie — try a photo of a single clothing item") and you may leave the other fields empty.
+When genuinely unsure but a garment is plausibly present, prefer is_clothing=true — don't block real clothes.
+
+If is_clothing is true, focus ONLY on the single main garment (ignore the background, the body, and any secondary items) and fill these using the vocabularies (pick from the list, or leave empty if uncertain):
 - category: top | bottom | dress | outerwear | footwear | accessory | ethnic
 - pattern: solid | striped | checked | floral | graphic | printed | textured | other
 - fit: slim | regular | loose | oversized | tailored
@@ -81,10 +88,12 @@ Use these vocabularies (pick from the list, or leave empty if uncertain):
 - seasons: summer | winter | monsoon | all-season
 
 For ethnic Indian wear (kurta, saree, lehenga, sherwani, etc.), use category="ethnic" and put the specific name in subcategory.
-Colors: plain names (navy blue, beige, off-white, etc.), max 3.
+Colors: plain names (navy blue, beige, off-white, etc.), max 3, describing the GARMENT not skin or background.
 Description: one short sentence describing the item.`
 
 export interface ItemAttributes {
+  is_clothing: boolean
+  reject_reason?: string
   category: string
   subcategory?: string
   colors: string[]
@@ -133,7 +142,10 @@ async function extractViaGemini(pngBuffer: Buffer): Promise<ItemAttributes> {
     LLM_TIMEOUT_MS,
     'Gemini tagging',
   )
-  return parseJsonOrThrow<ItemAttributes>(result.response.text(), 'tagging')
+  const a = parseJsonOrThrow<ItemAttributes>(result.response.text(), 'tagging')
+  // Default to accepting: a missing flag must never block a real upload.
+  a.is_clothing = a.is_clothing !== false
+  return a
 }
 
 // Structured output is usually well-formed, but never assume — parse
@@ -160,7 +172,7 @@ async function extractViaOpenRouter(pngBuffer: Buffer): Promise<ItemAttributes> 
   const dataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`
   const system = `${SYSTEM}
 
-Return ONLY a valid JSON object with these keys (omit any you're unsure of): category, subcategory, colors (array of strings), pattern, fabric, fit, sleeve_length, neck_type, occasions (array), seasons (array), features (array), description. No markdown, no prose.`
+Return ONLY a valid JSON object with these keys: is_clothing (boolean), reject_reason (string, only when is_clothing is false), category, subcategory, colors (array of strings), pattern, fabric, fit, sleeve_length, neck_type, occasions (array), seasons (array), features (array), description. No markdown, no prose.`
 
   const res = await openrouter().chat.completions.create(
     {
@@ -183,6 +195,9 @@ Return ONLY a valid JSON object with these keys (omit any you're unsure of): cat
   const p = JSON.parse(extractJson(text)) as Partial<ItemAttributes>
   // Normalise so the shape is always valid regardless of the model.
   return {
+    // Default to accepting: a missing flag must never block a real upload.
+    is_clothing: p.is_clothing !== false,
+    reject_reason: p.reject_reason,
     category: p.category ?? 'other',
     subcategory: p.subcategory,
     colors: p.colors ?? [],
