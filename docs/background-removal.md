@@ -19,8 +19,9 @@ Neither is production-quality for on-body photos.
 ## ⭐ Update (29 Jul) — tested a generative option (nano banana), and it's the standout
 
 Per the suggestion to try a generative method: instead of *masking* pixels, use **Gemini's image
-model (`gemini-2.5-flash-image`, "nano banana")** to **regenerate** the garment as a clean
-ghost-mannequin product photo. Tested on real on-body photos — input (worn) → nano banana output:
+model (`gemini-2.5-flash-image`, "nano banana")** to **regenerate** the garment as a clean product
+photo. Prompt tuned for consistency: **flat, front-facing, no mannequin, pure-white background, no
+invented labels.** Tested on real on-body photos — input (worn) → nano banana output:
 
 | Input (as worn) | nano banana output |
 |---|---|
