@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
+import sharp from 'sharp'
 import { createClient } from '@/lib/supabase/server'
 import { downloadFromStorage, uploadToStorage, deleteFromStorage } from '@/lib/storage'
-import { processImage } from '@/lib/processor'
 import { extractAttributes, generateProductImage, embedText, itemEmbedText } from '@/lib/gemini'
 import { MAX_IMAGE_BYTES, sniffedImageType } from '@/lib/imageValidation'
 
-// Vercel hobby tier caps server functions at 60s. HF Space cold start
-// + Gemini together can take 30-50s, so we ask for the full window.
+// Vercel hobby tier caps server functions at 60s. Generative extraction (nano
+// banana) + Gemini tagging + embedding can add up, so we ask for the full window.
 export const maxDuration = 60
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -56,25 +56,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unsupported or invalid image file' }, { status: 415 })
     }
 
-    // 2. Extraction + embedding, in parallel (max wall-clock, not the sum):
-    //    - nano banana regenerates a clean product photo of the garment (the
-    //      display image the user sees), and
-    //    - the HF Space provides a masking cutout we keep only as a fallback if
-    //      generation fails. (Its CLIP embedding is no longer used — the search
-    //      vector now comes from the text description, embedded below.)
-    //    A failed generation must never block an upload, so it degrades to the
-    //    Space's cutout rather than throwing.
-    const [spaceResult, generated] = await Promise.all([
-      processImage(rawImage),
-      generateProductImage(rawImage).catch((e) => {
-        console.warn(
-          'nano banana extraction failed, falling back to cutout:',
-          e instanceof Error ? e.message : e,
-        )
-        return null
-      }),
-    ])
-    const cleanedImage = generated ?? spaceResult.cleanedImage
+    // 2. Extraction: nano banana regenerates a clean product photo of the
+    //    garment. If generation fails, fall back to the user's raw photo
+    //    (normalised to PNG, EXIF-rotated) so an upload never breaks — worst
+    //    case the stored image is the as-worn photo until it's re-processed.
+    let cleanedImage: Buffer
+    try {
+      cleanedImage = await generateProductImage(rawImage)
+    } catch (e) {
+      console.warn(
+        'nano banana extraction failed, using raw photo:',
+        e instanceof Error ? e.message : e,
+      )
+      cleanedImage = await sharp(rawImage).rotate().png().toBuffer()
+    }
 
     // 3. Upload the cleaned PNG to storage
     const cleanedKey = `${user.id}/cleaned/${itemId}.png`

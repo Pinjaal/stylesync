@@ -66,13 +66,9 @@ export default function PrivacyPage() {
           <b>Vercel</b> — hosts and serves the app.
         </li>
         <li>
-          <b>OpenRouter and Google (Gemini)</b> — the language models that tag your clothes and
-          compose outfits. They receive clothing images (for tagging) and item descriptions (for
-          styling).
-        </li>
-        <li>
-          <b>A hosted image processor</b> — removes photo backgrounds and generates the embeddings
-          used to search your wardrobe.
+          <b>OpenRouter and Google (Gemini)</b> — the AI models that tag your clothes, regenerate a
+          clean product image of each garment, create the text embeddings used to search your
+          wardrobe, and compose outfits. They receive your clothing photos and item descriptions.
         </li>
         <li>
           <b>Open-Meteo</b> — receives only approximate coordinates to return the weather.
