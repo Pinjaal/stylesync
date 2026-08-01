@@ -16,6 +16,35 @@ We recently switched the extraction model and **traded one problem for another**
 
 Neither is production-quality for on-body photos.
 
+## ⭐ Update (29 Jul) — tested a generative option (nano banana), and it's the standout
+
+Per the suggestion to try a generative method: instead of *masking* pixels, use **Gemini's image
+model (`gemini-2.5-flash-image`, "nano banana")** to **regenerate** the garment as a clean
+ghost-mannequin product photo. Tested on real on-body photos — input (worn) → nano banana output:
+
+| Input (as worn) | nano banana output |
+|---|---|
+| ![](images/example-input.jpg) | ![](images/gen-nanobanana.png) |
+| ![](images/in-brown-kurti.jpg) | ![](images/gen-brown-kurti.png) |
+| ![](images/in-black-sequin.jpg) | ![](images/gen-black-sequin.png) |
+| ![](images/in-blue-shirt.jpg) | ![](images/gen-blue-shirt.png) |
+
+- Person, skin, and stray garments (leggings) **fully gone**; clean edges; pattern, neckline,
+  tie-bows and side-slits **preserved**. Compare to the SegFormer output further down.
+- **Cost ≈ $0.04 / image** (image output ≈ 1,290 tokens) — same ballpark as Photoroom ($0.02),
+  far cheaper than remove.bg ($0.20), and dramatically better looking.
+- **No GPU, no new infra** — runs off our existing Gemini / OpenRouter key.
+- "nano banana **2**" (nano-banana-pro) is available and would be marginally sharper, but our
+  free-tier Gemini quota blocks it right now; standard nano banana is already this good.
+
+**Caveat — it's generative:** it can subtly alter details (e.g. it invented an illegible "brand
+label" on the shirt collar). It yields a faithful *similar* product image, not a pixel-exact copy
+of your item — which is exactly the "AI-generated similar image" approach suggested, but worth
+knowing where exact fidelity matters.
+
+_Still pending: a like-for-like Photoroom vs remove.bg run — those need free-tier API keys to
+call. Given how strong the generative result is (and comparable cost), that comparison may be moot._
+
 ## Example (real output from our live pipeline)
 
 **Input** — the garment as the user photographs it (worn, on a body):
@@ -82,12 +111,21 @@ photo (e.g. Bria product tools; research: AssetDropper).
 ### D. Do nothing
 Keep the current SegFormer output. Works, but looks rough on on-body photos (see above).
 
-## Recommendation
-**Option A.** Google-style generative extraction is the wrong tool for a wardrobe *catalogue*
-and wildly out of proportion to our stage. Clean background-removal + a "lay it flat" prompt is
-how the real competitors look polished, for cents (or free) per image and zero infra to run.
-We'd keep the **non-clothing gate** we already added (rejects a random/non-garment upload) and,
-separately, tagging the *original* clear photo would fix the "kurti → Top" mislabel.
+## Recommendation (revised after testing)
+**Generative extraction with nano banana** is now the leading option — it's the only approach
+that produces genuinely clean, "best-form" cutouts from on-body photos, at ~$0.04/image, on our
+existing key, with no GPU. That's better *and* cheaper-or-equal to the masking APIs, so it
+reshapes the earlier call.
+
+Suggested path:
+1. **Primary:** nano banana generative extraction (with the non-clothing gate we already added in
+   front, to reject junk before spending a generation).
+2. **Fallback / pixel-faithful mode:** a background-removal API (Photoroom) for users who want
+   their *exact* photo rather than a regenerated one, or if a generation looks off.
+3. Tagging the resulting clean image (or the original) fixes the "kurti → Top" mislabel.
+
+The only real trade-off is the generative-fidelity caveat above — it makes a faithful *similar*
+image, not a pixel copy.
 
 ## Related (for context): embeddings
 Search currently embeds the garment *image* with a weak CLIP model, comparing text queries to
