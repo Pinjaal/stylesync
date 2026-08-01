@@ -285,6 +285,87 @@ export async function generateProductImage(imageBuffer: Buffer): Promise<Buffer>
   return Buffer.from(b64, 'base64')
 }
 
+// --- Text embeddings ---------------------------------------------------------
+// We embed the tagger's TEXT description of the garment (not the image) so that
+// search is text-vs-text — what embedding models are actually good at — instead
+// of the old text-query-vs-CLIP-image-vector mismatch. Both the item vectors
+// (write path) and the query vector (recommender) MUST use this same model AND
+// dimension, or they live in different spaces and similarity is meaningless.
+const EMBED_MODEL = process.env.GEMINI_EMBED_MODEL || 'gemini-embedding-001'
+// gemini-embedding-001 is Matryoshka: request 768 dims to match the pgvector
+// column. Cosine ranking is scale-invariant, so truncated dims need no re-norm.
+const EMBED_DIMS = Number(process.env.GEMINI_EMBED_DIMS) || 768
+
+/** Fields we turn into the embedded text. Loose on purpose so both the tagger's
+ *  ItemAttributes and a raw DB row (backfill) satisfy it. */
+export interface EmbedItemFields {
+  description?: string | null
+  category?: string | null
+  subcategory?: string | null
+  colors?: string[] | null
+  pattern?: string | null
+  fabric?: string | null
+  fit?: string | null
+  occasions?: string[] | null
+  seasons?: string[] | null
+}
+
+/**
+ * Build the canonical text we embed for an item. Leads with the free-text
+ * description, then folds in the structured tags so colour/occasion/season
+ * words carry weight in the vector. Keep this in ONE place — the write path and
+ * the backfill script must produce identical text or old and new vectors drift.
+ */
+export function itemEmbedText(a: EmbedItemFields): string {
+  return [
+    a.description,
+    a.category,
+    a.subcategory,
+    (a.colors ?? []).join(' '),
+    a.pattern,
+    a.fabric,
+    a.fit,
+    (a.occasions ?? []).join(' '),
+    (a.seasons ?? []).join(' '),
+  ]
+    .filter((s) => s && String(s).trim())
+    .join('. ')
+}
+
+/**
+ * Embed a piece of text with Gemini (`gemini-embedding-001`, 768-dim). Throws on
+ * failure so callers decide whether to degrade (upload stores a null vector and
+ * stays tag-searchable) or surface the error (query path). Uses REST directly so
+ * `outputDimensionality` is passed reliably regardless of SDK version.
+ */
+export async function embedText(text: string): Promise<number[]> {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) throw new Error('GEMINI_API_KEY is not set')
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: `models/${EMBED_MODEL}`,
+        content: { parts: [{ text }] },
+        outputDimensionality: EMBED_DIMS,
+      }),
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    },
+  )
+  if (!res.ok) {
+    throw new Error(`embedText ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`)
+  }
+  const j = (await res.json()) as { embedding?: { values?: number[] } }
+  const values = j.embedding?.values
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new Error('embedText: model returned no vector')
+  }
+  return values
+}
+
 const outfitSchema = {
   type: SchemaType.OBJECT,
   properties: {

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { embedText } from '@/lib/processor'
-import { composeOutfits } from '@/lib/gemini'
+import { composeOutfits, embedText } from '@/lib/gemini'
 import { getSignedUrls } from '@/lib/storage'
 import { buildTasteContext, buildSegmentContext } from '@/lib/taste'
 import { getWeather, coordsFromRequest } from '@/lib/weather'
@@ -181,7 +180,8 @@ export async function POST(req: Request) {
     const vibes = prefs.vibes ?? []
     const vibeText = vibes.length ? `${vibes.join(', ')} style, ` : ''
 
-    // 1. Turn the request into a CLIP vector
+    // 1. Turn the request into a text-embedding vector (same model the items are
+    // embedded with, so query and items share one space).
     const queryText =
       `${vibeText}${styleQuery || ''} ${occasion} outfit for ${season} weather`.trim()
     const embedding = await embedText(queryText)
@@ -190,15 +190,15 @@ export async function POST(req: Request) {
     const { data: candidates, error } = await supabase.rpc('match_items', {
       p_user_id: user.id,
       p_query_embedding: embedding,
-      p_occasion: occasion,
-      p_season: season,
       p_limit: 20,
     })
+    // Don't fail the request if vector search is unavailable (e.g. the 768-dim
+    // migration hasn't been applied yet, or no item has a vector) — the tag
+    // top-up below fills the candidate set. We just lose semantic ranking.
     if (error) {
-      console.error('recommend match_items error:', error)
-      return NextResponse.json({ error: 'Retrieval failed' }, { status: 500 })
+      console.warn('recommend match_items unavailable, falling back to tags:', error.message)
     }
-    const cands = (candidates ?? []) as Candidate[]
+    const cands = (error ? [] : (candidates ?? [])) as Candidate[]
     const seen = new Set(cands.map((c) => c.id))
     const pushUnique = (rows: Omit<Candidate, 'similarity'>[]) => {
       for (const i of rows) {
@@ -210,11 +210,10 @@ export async function POST(req: Request) {
     }
     const ITEM_COLS = 'id, category, subcategory, colors, description, cleaned_image_key'
 
-    // The vector search (match_items) applies a similarity cut-off. CLIP's text→image
-    // scores are naturally low (~0.2-0.3), so that cut-off routinely starves the
-    // stylist down to 1-3 items even when the closet has many occasion-appropriate
-    // pieces — which produces thin, repetitive outfits. When the ranked set is thin,
-    // top it up with items TAGGED for this occasion so the LLM has enough to work with.
+    // match_items ranks the whole active closet by text-embedding similarity and
+    // returns the top 20 (no hard cut-off). For small or newly-migrated closets
+    // some items may still lack a vector, so top up with items TAGGED for this
+    // occasion to guarantee the stylist has enough to work with.
     if (cands.length < 8) {
       const { data: tagged } = await supabase
         .from('items')

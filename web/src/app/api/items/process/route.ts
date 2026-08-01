@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { downloadFromStorage, uploadToStorage, deleteFromStorage } from '@/lib/storage'
 import { processImage } from '@/lib/processor'
-import { extractAttributes, generateProductImage } from '@/lib/gemini'
+import { extractAttributes, generateProductImage, embedText, itemEmbedText } from '@/lib/gemini'
 import { MAX_IMAGE_BYTES, sniffedImageType } from '@/lib/imageValidation'
 
 // Vercel hobby tier caps server functions at 60s. HF Space cold start
@@ -59,8 +59,9 @@ export async function POST(req: Request) {
     // 2. Extraction + embedding, in parallel (max wall-clock, not the sum):
     //    - nano banana regenerates a clean product photo of the garment (the
     //      display image the user sees), and
-    //    - the HF Space returns the 512-dim CLIP embedding (+ a masking cutout
-    //      we keep only as a fallback if generation fails).
+    //    - the HF Space provides a masking cutout we keep only as a fallback if
+    //      generation fails. (Its CLIP embedding is no longer used — the search
+    //      vector now comes from the text description, embedded below.)
     //    A failed generation must never block an upload, so it degrades to the
     //    Space's cutout rather than throwing.
     const [spaceResult, generated] = await Promise.all([
@@ -73,8 +74,7 @@ export async function POST(req: Request) {
         return null
       }),
     ])
-    const { cleanedImage: cutout, embedding } = spaceResult
-    const cleanedImage = generated ?? cutout
+    const cleanedImage = generated ?? spaceResult.cleanedImage
 
     // 3. Upload the cleaned PNG to storage
     const cleanedKey = `${user.id}/cleaned/${itemId}.png`
@@ -98,17 +98,34 @@ export async function POST(req: Request) {
       )
     }
 
-    // 5. Insert the row in the items table (RLS enforces user_id == auth.uid()).
+    // 5. Embed the garment's text description (768-dim, Gemini) — this is the
+    // search vector. Best-effort: if it fails the item still saves and stays
+    // searchable via its tags, just without semantic ranking.
+    let embedding: number[] | null = null
+    try {
+      embedding = await embedText(itemEmbedText(attrs))
+    } catch (e) {
+      console.warn('items/process embedText failed (saving without vector):', e instanceof Error ? e.message : e)
+    }
+
+    // 6. Insert the row in the items table (RLS enforces user_id == auth.uid()).
     // is_clothing/reject_reason are gate signals, not columns — drop them.
     const { is_clothing: _ic, reject_reason: _rr, ...cols } = attrs
-    const { error: insertError } = await supabase.from('items').insert({
+    const base = {
       id: itemId,
       user_id: user.id,
       raw_image_key: rawKey,
       cleaned_image_key: cleanedKey,
       ...cols,
-      embedding,
-    })
+    }
+    let { error: insertError } = await supabase.from('items').insert({ ...base, embedding })
+    // If the embedding is present but the row won't take it (e.g. the 768-dim
+    // migration hasn't been applied yet), don't lose the upload — retry without
+    // the vector rather than fail the user.
+    if (insertError && embedding) {
+      console.warn('insert with embedding failed, retrying without vector:', insertError.message)
+      ;({ error: insertError } = await supabase.from('items').insert({ ...base, embedding: null }))
+    }
     if (insertError) {
       console.error('items/process DB insert error:', insertError)
       return NextResponse.json({ error: 'Could not save item' }, { status: 500 })

@@ -43,29 +43,3 @@ export async function processImage(
     embedding: data.embedding,
   }
 }
-
-export async function embedText(text: string): Promise<number[]> {
-  const url = process.env.PROCESSOR_URL
-  const secret = process.env.PROCESSOR_SECRET
-  if (!url || !secret) {
-    throw new Error('PROCESSOR_URL or PROCESSOR_SECRET is not set')
-  }
-
-  const response = await fetch(`${url}/embed_text`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-processor-secret': secret,
-    },
-    body: JSON.stringify({ text }),
-    signal: AbortSignal.timeout(50_000),
-  })
-
-  if (!response.ok) {
-    const t = await response.text()
-    throw new Error(`Processor /embed_text returned ${response.status}: ${t.slice(0, 200)}`)
-  }
-
-  const data = (await response.json()) as { embedding: number[] }
-  return data.embedding
-}
