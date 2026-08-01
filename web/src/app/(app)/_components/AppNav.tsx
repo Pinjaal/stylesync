@@ -8,7 +8,7 @@ import { Spark } from '@/components/Spark'
 import { LoginPrompt } from '@/components/LoginPrompt'
 import { uploadItems } from '@/lib/uploadItems'
 
-const STAGES = ['Removing the background…', 'Tagging with AI…', 'Saving to your closet…']
+const STAGES = ['Extracting the garment…', 'Tagging with AI…', 'Saving to your closet…']
 
 export interface NavMe {
   name: string

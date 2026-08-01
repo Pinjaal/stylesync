@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { downloadFromStorage, uploadToStorage, deleteFromStorage } from '@/lib/storage'
 import { processImage } from '@/lib/processor'
-import { extractAttributes } from '@/lib/gemini'
+import { extractAttributes, generateProductImage } from '@/lib/gemini'
 import { MAX_IMAGE_BYTES, sniffedImageType } from '@/lib/imageValidation'
 
 // Vercel hobby tier caps server functions at 60s. HF Space cold start
@@ -56,8 +56,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unsupported or invalid image file' }, { status: 415 })
     }
 
-    // 2. Send to HF Space — get cleaned PNG + 512-dim embedding back
-    const { cleanedImage, embedding } = await processImage(rawImage)
+    // 2. Extraction + embedding, in parallel (max wall-clock, not the sum):
+    //    - nano banana regenerates a clean product photo of the garment (the
+    //      display image the user sees), and
+    //    - the HF Space returns the 512-dim CLIP embedding (+ a masking cutout
+    //      we keep only as a fallback if generation fails).
+    //    A failed generation must never block an upload, so it degrades to the
+    //    Space's cutout rather than throwing.
+    const [spaceResult, generated] = await Promise.all([
+      processImage(rawImage),
+      generateProductImage(rawImage).catch((e) => {
+        console.warn(
+          'nano banana extraction failed, falling back to cutout:',
+          e instanceof Error ? e.message : e,
+        )
+        return null
+      }),
+    ])
+    const { cleanedImage: cutout, embedding } = spaceResult
+    const cleanedImage = generated ?? cutout
 
     // 3. Upload the cleaned PNG to storage
     const cleanedKey = `${user.id}/cleaned/${itemId}.png`

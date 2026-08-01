@@ -213,6 +213,78 @@ Return ONLY a valid JSON object with these keys: is_clothing (boolean), reject_r
   }
 }
 
+// --- Generative garment extraction ("nano banana") ---------------------------
+// Instead of masking pixels (SegFormer/rembg), regenerate the garment as a clean
+// e-commerce product photo. Prompt tuned with the mentor for consistency: flat,
+// straight front-facing, no mannequin/body, pure-white background, and no
+// invented labels. Routed through OpenRouter (its key has image credits; the
+// free Gemini key 429s on image models). ~$0.04/image.
+const PRODUCT_IMAGE_MODEL =
+  process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image'
+
+const PRODUCT_PROMPT = `Turn this into a clean e-commerce product photo of ONLY the main garment.
+Strict requirements:
+- Show the garment FLAT and perfectly FRONT-FACING (straight-on front view), neatly laid out.
+- Do NOT show any mannequin, hanger, person, body, skin, arms, legs, or head.
+- Pure solid white (#FFFFFF) seamless background.
+- Garment centred and fully visible, upright, symmetrical.
+- Preserve the exact colours, print/pattern, neckline, sleeves and details faithfully.
+- Do NOT add or invent any labels, brand tags, logos or text.
+- Remove any secondary clothing (e.g. leggings or pants) that is not the main garment.`
+
+/**
+ * Regenerate an on-body / messy photo as a clean product shot of the garment.
+ * Returns a PNG Buffer. Throws on any failure (missing key, non-2xx, no image in
+ * the response) so callers can fall back to the masking cutout — a failed
+ * generation must never block an upload.
+ */
+export async function generateProductImage(imageBuffer: Buffer): Promise<Buffer> {
+  const key = process.env.OPENROUTER_API_KEY
+  if (!key) throw new Error('OPENROUTER_API_KEY is not set')
+
+  const dataUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://stylesync-murex.vercel.app',
+      'X-Title': 'StyleSync',
+    },
+    body: JSON.stringify({
+      model: PRODUCT_IMAGE_MODEL,
+      // OpenRouter extension: ask the image model to return an image (+ text).
+      modalities: ['image', 'text'],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: PRODUCT_PROMPT },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+  })
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`nano banana ${res.status}: ${detail.slice(0, 200)}`)
+  }
+
+  const j = (await res.json()) as {
+    choices?: { message?: { images?: { image_url?: { url?: string }; url?: string }[] } }[]
+  }
+  const img = j.choices?.[0]?.message?.images?.[0]
+  const url = img?.image_url?.url || img?.url
+  if (typeof url !== 'string' || !url.startsWith('data:')) {
+    throw new Error('nano banana returned no image')
+  }
+  const b64 = url.slice(url.indexOf(',') + 1)
+  return Buffer.from(b64, 'base64')
+}
+
 const outfitSchema = {
   type: SchemaType.OBJECT,
   properties: {
